@@ -17,6 +17,3 @@ install:
 uninstall:
 	@if [ -f "$(MODULE_DEST)" ]; then rm "$(MODULE_DEST)" && echo "Removed $(MODULE_DEST)"; fi
 	@if [ -f "$(BIN_DEST)" ]; then rm "$(BIN_DEST)" && echo "Removed $(BIN_DEST)"; fi
-
-lint:
-	caddie core:lint "$(SRC_MODULE)"
