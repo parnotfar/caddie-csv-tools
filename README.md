@@ -1,6 +1,7 @@
 # caddie-csv-tools
 
-A standalone CSV/TSV analytics module for [caddie.sh](https://github.com/parnotfar/caddie.sh). It packages the `csv` commands (querying, plotting, previews) so they can evolve independently of the core caddie distribution.
+A standalone CSV/TSV analytics module for [caddie.sh](https://github.com/parnotfar/caddie.sh). It packages the `csv`
+commands (querying, plotting, previews) so they can evolve independently of the core caddie distribution.
 
 ## Features
 
@@ -12,13 +13,15 @@ A standalone CSV/TSV analytics module for [caddie.sh](https://github.com/parnotf
 ## Installation
 
 ```bash
-git clone https://github.com/parnotfar/caddie-csv-tools.git
+caddie github:set:account parnotfar
+caddie git:clone caddie-csv-tools (optional: git clone https://github.com/parnotfar/caddie-csv-tools.git)
 cd caddie-csv-tools
 make install
 caddie reload
 ```
 
-The `install` target copies `modules/dot_caddie_csv.sh` into `~/.caddie_modules/.caddie_csv` and places `bin/csvql.py` in `~/.caddie_modules/bin/`. After reloading caddie the `csv:*` commands are available as before.
+The `install` target copies the appropriate module file into the caddie module directory structure and places the python
+application in the appropriate bin directory.
 
 To remove the module:
 
@@ -32,7 +35,8 @@ caddie reload
 Run the caddie linter against the module:
 
 ```bash
-make lint
+cd caddie-csv-tools
+caddie core:lint
 ```
 
 See [`docs/usage.md`](docs/usage.md) for comprehensive documentation and command examples.
