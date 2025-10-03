@@ -32,7 +32,11 @@ caddie csv:query "SELECT x, y FROM df WHERE x < 6"
 
 # Create visualizations
 caddie csv:plot 
+```
 
+![Caddie Example](docs/images/caddie_line_plot.png)
+
+```bash
 # Run a query (output opens in your pager automatically)
 caddie csv:query
 ```
