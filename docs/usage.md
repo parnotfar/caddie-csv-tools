@@ -23,18 +23,21 @@ caddie csv:init
 
 # Set up a workflow session
 caddie csv:set:file /tmp/test.csv
-caddie csv:set:x x
-caddie csv:set:y y
-caddie csv:set:plot line
 
 # Query your data
-caddie csv:query "SELECT x, y FROM df WHERE x < 6"
-
-# Create visualizations
-caddie csv:plot 
+caddie csv:set:sql 'SELECT x, y FROM df WHERE x < 6'
 
 # Run a query (output opens in your pager automatically)
 caddie csv:query
+
+# Summary query 
+caddie csv:query:summary
+
+# Create visualizations
+caddie csv:set:x x
+caddie csv:set:y y
+caddie csv:set:plot line
+caddie csv:plot 
 ```
 
 ### Example Usage
