@@ -36,6 +36,24 @@ function caddie_csv_init_globals() {
 
 caddie_csv_init_globals
 
+function caddie_csv_prompt_segment() {
+    local csv_file="${CADDIE_CSV_FILE:-}"
+    if [ -z "$csv_file" ]; then
+        return 0
+    fi
+
+    local display="$csv_file"
+    if [ -n "$HOME" ] && [[ "$display" == "$HOME"* ]]; then
+        display="~${display#$HOME}"
+    fi
+
+    local prefix="${PS_CYAN:-}"
+    local suffix="${PS_RESET:-}"
+
+    printf '[%scsv:%s%s]' "$prefix" "$display" "$suffix"
+    return 0
+}
+
 function caddie_csv_env_name() {
     local alias="$1"
     local env_name="${CADDIE_CSV_ENV_MAP[$alias]}"
@@ -622,6 +640,37 @@ function caddie_csv_tail() {
     caddie_csv_preview_internal tail "Previewing last rows" "caddie csv:tail [file] [tail options]" "$@"
     return $?
 }
+
+function caddie_csv_commands() {
+    printf '%s' "csv:init csv:query csv:query:summary csv:plot csv:scatter csv:line csv:bar csv:head csv:tail csv:list \
+csv:set:file csv:get:file csv:unset:file \
+csv:set:x csv:get:x csv:unset:x \
+csv:set:y csv:get:y csv:unset:y \
+csv:set:sep csv:get:sep csv:unset:sep \
+csv:set:plot csv:get:plot csv:unset:plot \
+csv:set:title csv:get:title csv:unset:title \
+csv:set:limit csv:get:limit csv:unset:limit \
+csv:set:save csv:get:save csv:unset:save \
+csv:set:pager csv:get:pager csv:unset:pager \
+csv:set:success_filter csv:get:success_filter csv:unset:success_filter \
+csv:set:scatter_filter csv:get:scatter_filter csv:unset:scatter_filter \
+csv:set:sql csv:get:sql csv:unset:sql \
+csv:set:circle csv:get:circle csv:unset:circle \
+csv:set:rings csv:get:rings csv:unset:rings \
+csv:set:circle_x csv:get:circle_x csv:unset:circle_x \
+csv:set:circle_y csv:get:circle_y csv:unset:circle_y \
+csv:set:circle_r csv:get:circle_r csv:unset:circle_r \
+csv:set:circle_radii csv:get:circle_radii csv:unset:circle_radii"
+    return 0
+}
+
+if declare -F caddie_prompt_register_segment >/dev/null 2>&1; then
+    caddie_prompt_register_segment caddie_csv_prompt_segment
+fi
+
+if declare -F caddie_completion_register >/dev/null 2>&1; then
+    caddie_completion_register "csv" "$(caddie_csv_commands)"
+fi
 
 export -f caddie_csv_description
 export -f caddie_csv_help

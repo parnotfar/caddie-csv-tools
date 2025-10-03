@@ -9,6 +9,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 - Session defaults via `csv:set:*` helpers (file, axes, filters, plot metadata)
 - Scatter, line, and bar chart support with matplotlib overlays
 - Head/tail previews, configurable pagers, and saved output targets
+- Automatic integration with caddie’s prompt and completion registries
 
 ## Installation
 
@@ -29,6 +30,8 @@ To remove the module:
 make uninstall
 caddie reload
 ```
+
+Tab completion and the `[csv:…]` prompt indicator are registered automatically when the module is sourced.
 
 ## Development
 
