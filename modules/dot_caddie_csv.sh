@@ -68,11 +68,17 @@ function caddie_csv_set_alias_internal() {
 
 function caddie_csv_show_alias_internal() {
     local alias="$1"
+    local unformatted=$2
     local env
     env=$(caddie_csv_env_name "$alias") || return 1
     local value="${!env:-}"
 
     if [ -n "$value" ]; then
+        if [ -n "$unformatted" ]; then
+            printf '%s\n' "$value"
+            return 0
+        fi
+
         caddie cli:package "${alias//_/ } = $value"
     else
         caddie cli:warning "${alias//_/ } not set"
@@ -111,7 +117,7 @@ function caddie_csv_list() {
 }
 
 function caddie_csv_set_file()          { caddie_csv_set_alias_internal file "caddie csv:set:file <path>" "$@"; return $?; }
-function caddie_csv_get_file()          { caddie_csv_show_alias_internal file; return $?; }
+function caddie_csv_get_file()          { caddie_csv_show_alias_internal file unformatted; return $?; }
 function caddie_csv_unset_file()        { caddie_csv_unset_alias_internal file; return $?; }
 
 function caddie_csv_set_x()             { caddie_csv_set_alias_internal x "caddie csv:set:x <column>" "$@"; return $?; }
@@ -233,34 +239,15 @@ function caddie_csv_get_circle_radii()  { caddie_csv_show_alias_internal circle_
 function caddie_csv_unset_circle_radii(){ caddie_csv_unset_alias_internal circle_radii; return $?; }
 
 function caddie_csv_script_path_internal() {
-    local module_dir
-    local repo_candidate
-    module_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-    repo_candidate="${module_dir%/modules}/bin/csvql.py"
-
-    local candidates=(
-        "$HOME/.caddie_modules/bin/csvql.py"
-        "$repo_candidate"
-    )
-
-    if [ -n "$CADDIE_HOME" ]; then
-        candidates+=(
-            "$CADDIE_HOME/bin/csvql.py"
-            "$CADDIE_HOME/csvql.py"
-            "$CADDIE_HOME/scripts/csvql.py"
-        )
+    local script_path="$HOME/.caddie_bin/csvql.py"
+    
+    if [ -f "$script_path" ]; then
+        printf '%s\n' "$script_path"
+        return 0
     fi
 
-    local candidate
-    for candidate in "${candidates[@]}"; do
-        if [ -f "$candidate" ]; then
-            printf '%s\n' "$candidate"
-            return 0
-        fi
-    done
-
-    caddie cli:red "csvql.py not found"
-    caddie cli:thought "Run 'make install-dot' or set CADDIE_HOME to your caddie.sh checkout"
+    caddie cli:red "csvql.py not found at $script_path"
+    caddie cli:thought "Run 'make install' to install csvql.py"
     return 1
 }
 
