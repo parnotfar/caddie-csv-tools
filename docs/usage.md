@@ -1,6 +1,7 @@
 # CSV Module
 
-The CSV module provides fast analytics over CSV/TSV data with DuckDB SQL and optional matplotlib plots. It wraps the `bin/csvql.py` Python helper to make data analysis effortless and consistent.
+The CSV module provides fast analytics over CSV/TSV data with DuckDB SQL and optional matplotlib plots. It wraps the
+`bin/csvql.py` Python helper to make data analysis effortless and consistent.
 
 ## Overview
 
@@ -21,16 +22,16 @@ The CSV module is designed to streamline data analysis workflows by providing:
 caddie csv:init
 
 # Set up a workflow session
-caddie csv:set:file target/putt_data.csv
-caddie csv:set:x target_distance
-caddie csv:set:y success_rate
-caddie csv:set:plot scatter
+caddie csv:set:file /tmp/test.csv
+caddie csv:set:x x
+caddie csv:set:y y
+caddie csv:set:plot line
 
 # Query your data
-caddie csv:query "SELECT * FROM df WHERE distance > 20"
+caddie csv:query "SELECT x, y FROM df WHERE x < 6"
 
 # Create visualizations
-caddie csv:plot --rings --circle-radii "3,6,9"
+caddie csv:plot 
 
 # Run a query (output opens in your pager automatically)
 caddie csv:query
@@ -46,10 +47,7 @@ Initialize or update the local csvql virtual environment.
 
 **Examples:**
 ```bash
-# Initialize CSV environment
-caddie csv:init
-
-# Update environment (idempotent)
+# Initialize or update CSV environment (idempotent)
 caddie csv:init
 ```
 
