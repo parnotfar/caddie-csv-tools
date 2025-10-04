@@ -10,6 +10,7 @@ The CSV module is designed to streamline data analysis workflows by providing:
 - **SQL Analytics**: Query CSV/TSV files with familiar SQL syntax using DuckDB backend
 - **Visualization**: Create scatter, line, and bar plots with matplotlib
 - **Session Management**: Manage default settings via dedicated `csv:set:*`, `csv:get:*`, and `csv:unset:*` commands
+- **Saved Sessions**: Capture, list, restore, and delete named configurations
 - **Quick Preview**: Inspect the top or bottom of datasets with `csv:head` and `csv:tail`
 - **Interactive Paging**: Stream large query results through `less`/`more` (auto-detected) or a custom pager
 - **Overlay Features**: Optional circle outlines and concentric rings for highlighting targets or tolerance zones
@@ -38,6 +39,11 @@ caddie csv:set:x x
 caddie csv:set:y y
 caddie csv:set:plot line
 caddie csv:plot 
+
+# Save and restore sessions
+caddie csv:session:save "Line chart"
+caddie csv:session:list
+caddie csv:session:restore 1
 ```
 
 ### Example Usage
@@ -735,6 +741,65 @@ caddie csv:set:circle_radii "2,4,6,8,10"
 ```
 ✓ Set ring radii to 3,6,9
 ```
+
+### Session Persistence
+
+#### `caddie csv:unset:all`
+
+Clear every CSV session default in one command. Useful when switching data sets or starting a fresh analysis.
+
+```bash
+caddie csv:unset:all
+```
+
+#### `caddie csv:session:save [label]`
+
+Persist the current defaults (file, axes, filters, plot metadata, etc.) with an optional label. Sessions are stored under `~/.caddie_csv/sessions`.
+
+```bash
+caddie csv:session:save "Dispersion"
+```
+
+#### `caddie csv:session:list`
+
+Display saved sessions with their numeric id, label, and timestamp.
+
+```bash
+caddie csv:session:list
+```
+
+#### `caddie csv:session:view <id>`
+
+Inspect the key/value pairs saved for a specific session.
+
+```bash
+caddie csv:session:view 2
+```
+
+#### `caddie csv:session:restore <id>`
+
+Load a saved session, clearing existing defaults first.
+
+```bash
+caddie csv:session:restore 1
+```
+
+#### `caddie csv:session:delete <id>`
+
+Remove a saved session permanently.
+
+```bash
+caddie csv:session:delete 3
+```
+
+#### `caddie csv:session:delete:all`
+
+Remove every saved session snapshot.
+
+```bash
+caddie csv:session:delete:all
+```
+
 
 ## Environment Variables
 
