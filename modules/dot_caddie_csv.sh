@@ -913,8 +913,11 @@ csv:session:save csv:session:list csv:session:view csv:session:restore csv:sessi
 #   caddie csv:prompt --dry-run "..."
 function caddie_csv_prompt() {
   local DRY=0
+  
   if [[ "$1" == "--dry-run" ]]; then DRY=1; shift; fi
+
   local PROMPT_RAW="$*"
+
   if [[ -z "$PROMPT_RAW" ]]; then
     caddie cli:red "Usage: caddie csv:prompt [--dry-run] \"<prompt>\""
     return 2
@@ -923,6 +926,7 @@ function caddie_csv_prompt() {
   # --- Sanitize multi-line + backslash continuations ---
   # 1) turn newlines into spaces
   local PROMPT="${PROMPT_RAW//$'\n'/ }"
+
   # 2) collapse sequences like "  \  " into a single space
   PROMPT="$(sed -E 's/[[:space:]]*\\[[:space:]]*/ /g; s/[[:space:]]+/ /g' <<<"$PROMPT")"
 
@@ -930,8 +934,20 @@ function caddie_csv_prompt() {
 
   _m() { [[ "$PROMPT" =~ $1 ]] && printf '%s' "${BASH_REMATCH[1]}"; }
 
-  local path plot x y title save where sql rings sess
-  local cx cy cr
+  local path
+  local plot
+  local query
+  local x
+  local y
+  local title
+  local save
+  local where
+  local sql
+  local rings
+  local sess
+  local cx
+  local cy
+  local cr
 
   # ERE-safe patterns (no (?:...))
   path="$(_m '([[:alnum:]_./-]+\.csv)')"
@@ -939,6 +955,10 @@ function caddie_csv_prompt() {
   # word-boundary alternative: capture group 2
   if [[ "$PROMPT" =~ (^|[[:space:][:punct:]])(scatter|line|bar)($|[[:space:][:punct:]]) ]]; then
     plot="${BASH_REMATCH[2]}"
+  fi
+
+  if [[ "$PROMPT" =~ (^|[[:space:][:punct:]])(query|summary)($|[[:space:][:punct:]]) ]]; then
+    query="${BASH_REMATCH[2]}"
   fi
 
   x="$(_m '[xX][[:space:]]*[:=][[:space:]]*([A-Za-z_][A-Za-z0-9_]*)')"
@@ -985,9 +1005,12 @@ function caddie_csv_prompt() {
   fi
   [[ -n "$save"  ]] && cmds+=("caddie csv:set:save $save")
 
+
   if [[ -n "$where" ]]; then
     local esc_where; esc_where="$(sed "s/'/'\\\\''/g" <<<"$where")"
-    cmds+=("caddie csv:set:scatter_filter '$esc_where'")
+    if [[ -z "${query}" ]]; then
+      cmds+=("caddie csv:set:scatter_filter '$esc_where'")
+    fi
   fi
 
   if [[ -n "$sql" ]]; then
@@ -1009,11 +1032,21 @@ function caddie_csv_prompt() {
   fi
 
   cmds+=("caddie csv:list")
+
+  if [[ -n "${query}"  ]]; then
+    if [[ ${query} == "query" ]]; then
+      cmds+=("caddie csv:query")
+    else
+      cmds+=("caddie csv:query:summary")
+    fi
+  fi
+
   case "${plot,,}" in
     line)       cmds+=("caddie csv:line");;
     bar)        cmds+=("caddie csv:bar");;
-    ""|scatter) cmds+=("caddie csv:scatter");;
+    scatter)    cmds+=("caddie csv:scatter");;
   esac
+
   [[ -n "$sess" ]] && cmds+=("caddie csv:session:save $sess")
 
   shopt -u nocasematch
