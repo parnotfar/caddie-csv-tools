@@ -3,6 +3,10 @@
 A standalone CSV/TSV analytics module for [caddie.sh](https://github.com/parnotfar/caddie.sh). It packages the `csv`
 commands (querying, plotting, previews) so they can evolve independently of the core caddie distribution.
 
+## Version
+
+1.1
+
 ## Features
 
 - DuckDB-powered SQL querying with optional data visualisation
@@ -46,4 +50,8 @@ See [`docs/usage.md`](docs/usage.md) for comprehensive documentation and command
 
 ## Versioning
 
-The module is versioned independently from caddie. The current release is **1.0.0**.
+The module is versioned independently from caddie.sh
+
+## Compatabilty
+
+This module is compatible with caddie.sh version 2.2 and above
