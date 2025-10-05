@@ -44,6 +44,9 @@ caddie csv:plot
 caddie csv:session:save "Line chart"
 caddie csv:session:list
 caddie csv:session:restore 1
+
+# Natural Language Prompts
+caddie csv:prompt 'plot /tmp/test.csv scatter x=x y=y where x < 6 title: Less Than Six save session as less_than_6'
 ```
 
 ### Example Usage
@@ -83,6 +86,95 @@ Setting up csvql environment
 
 **Idempotent:** Yes - can be run multiple times safely
 
+## Natural-Language Prompts
+
+Turn a short, natural-language request into the exact `caddie csv:*` commands needed to configure a session and render
+query results or a plot.
+
+### Mini-Language Grammer
+
+You can combine the supported syntax in any order:
+
+| Feature                 | Syntax                         | Notes                                                |
+| ----------------------- | ------------------------------ |----------------------------------------------------- |
+| Execution path          | `query` \| `summary` \| `plot` | Determines whether to query or plot the data         |
+| CSV file                | `path/to/file.csv`             | First `*.csv` in the prompt is used                  |
+| Plot type               | `scatter` \| `line` \| `bar`   | Controls which `csv:*` plot command runs             |
+| Axes                    | `x=<col> y=<col>`              | Both required for plotting                           |
+| Filter → scatter_filter | `where <predicate>`            | Copied verbatim to `csv:set:scatter_filter`          |
+| Title                   | `title: <text>`                | Title set up to the next keyword (e.g., `save to`)   |
+| Save path               | `save to path.png`             | Passed to `csv:set:save`. (HTML is allowed for consistency; rendering remains matplotlib.) |
+| Define SQL              | `sql: <query>`                 | Passed to `csv:set:sql` (e.g., `sql: select * from df where success=false`) |
+| Circle overlay          | `circle at (X,Y) r=R`          | Sets `circle=true`, `circle_x`, `circle_y`, `circle_r`. `(X,Y)` parentheses optional; `r=R` optional |
+| Rings overlay           | `rings: r1, r2, r3`            | Enables `rings=true` and sets `circle_radii` (comma-separated) |
+| Save session            | `save session as <label>`      | Persists the current defaults                        |
+| Dry run                 | `--dry-run` (flag)             | Print commands instead of executing                  |
+
+#### Examples
+
+```bash
+# 1) Misses for <=10 HCP, saved as PNG + session
+caddie csv:prompt "plot data/30ft_positions.csv scatter x=x_position y=y_position \
+where success=false and handicap<=10 \
+title: 30ft Misses save to out/30ft.png save session as 30ft_misses"
+
+# 2) Rings + circle overlays
+caddie csv:prompt "plot data/25ft.csv scatter x=x_position y=y_position \
+rings: 0.5, 1.0, 2.0 circle at (12.5,7.5) r=1.5 \
+title: 25ft dispersion save to out/25ft.png"
+
+# 3) SQL slice with save
+caddie csv:prompt "plot data/putts.csv scatter x=x_position y=y_position \
+sql: select * from df where success=false limit 500 \
+title: Misses (first 500) save to out/misses.png"
+```
+
+#### Tips & Edge Cases
+
+* Line continuations: You can split prompts across lines with \. The parser normalizes these.
+* Quoting: If your title or SQL contains single quotes, they’re escaped automatically when exported to csv:set:*.
+* Order: Keywords can appear in any order; the parser stops each capture at the next keyword it recognizes.
+* Non-destructive: csv:prompt begins with csv:unset:all to avoid stale defaults. If you want to keep previous state, re-apply specific keys after running or restore a saved session.
+
+##### What Gets Generated (Dry-Run Example)
+
+Prompt:
+
+```bash
+caddie csv:prompt --dry-run "plot data/30ft.csv scatter x=x_position y=y_position \
+where success=false and handicap<=10 \
+title: 30ft Misses save to out/30ft.png save session as 30ft_misses"
+```
+
+Output:
+
+```bash
+caddie csv:unset:all
+caddie csv:set:file data/30ft.csv
+caddie csv:set:plot scatter
+caddie csv:set:x x_position
+caddie csv:set:y y_position
+caddie csv:set:title '30ft Misses'
+caddie csv:set:save out/30ft.png
+caddie csv:set:scatter_filter 'success=false and handicap<=10'
+caddie csv:list
+caddie csv:scatter
+caddie csv:session:save 30ft_misses
+```
+
+### Troubleshooting
+* “Plot type not set” → include scatter, line, or bar in your prompt, or run caddie csv:set:plot … first.
+* “Set csv axes before plotting” → include x=<col> y=<col> in your prompt, or set them via csv:set:x / csv:set:y.
+* No file found → ensure the prompt contains a *.csv path or set a default with csv:set:file.
+* Filters not applying → confirm your where predicate matches what your plotting path expects (scatter_filter is set verbatim).
+
+### See Also
+```bash
+caddie csv:help – command reference
+caddie csv:list – current defaults
+caddie csv:session:* – save/restore reusable plotting presets
+```
+
 ### Data Query and Analysis
 
 #### `caddie csv:query [file] [sql] [-- flags]`
@@ -111,7 +203,6 @@ caddie csv:query "SELECT distance, AVG(success_rate) FROM df GROUP BY distance O
 
 **What it does:**
 - Loads CSV/TSV file into DuckDB database
-
 - Executes SQL query against the data
 - Returns results in tabular format
 - Automatically summarizes large result sets (>20 rows)
@@ -120,7 +211,6 @@ caddie csv:query "SELECT distance, AVG(success_rate) FROM df GROUP BY distance O
 
 **Output:**
 ```
-Running csvql on putt_data.csv
 distance  avg_success_rate
 ---------  ---------------
 1.5       0.95
@@ -177,7 +267,7 @@ caddie csv:plot data/approach_shots.csv charts/approach.png --limit 200
 ```
 
 **What it does:**
-- Uses the active plot type stored in `CADDIE_CSV_PLOT`
+- Uses the active plot type defined by `csv:set:plot`
 - Applies current axis settings (x, y columns)
 - Adds overlays (circle, rings) when those defaults are enabled
 - Saves to disk when an output path is provided, otherwise shows interactively
@@ -187,7 +277,7 @@ caddie csv:plot data/approach_shots.csv charts/approach.png --limit 200
 - Plot type must be one of `scatter`, `line`, or `bar` (validated by `csv:set:plot`)
 - X and Y axis columns must be defined (`caddie csv:set:x` and `caddie csv:set:y`)
 - Data columns must exist in the file
-- Plotting dependencies must be installed
+- Plotting dependencies must be installed (`caddie csv:init` has been performed)
 
 #### `caddie csv:line [file] [output.png] [-- flags]`
 
@@ -754,7 +844,8 @@ caddie csv:unset:all
 
 #### `caddie csv:session:save [label]`
 
-Persist the current defaults (file, axes, filters, plot metadata, etc.) with an optional label. Sessions are stored under `~/.caddie_csv/sessions`.
+Persist the current defaults (file, axes, filters, plot metadata, etc.) with an optional label. Sessions are stored
+under `~/.caddie_csv/sessions`.
 
 ```bash
 caddie csv:session:save "Dispersion"
@@ -800,7 +891,6 @@ Remove every saved session snapshot.
 caddie csv:session:delete:all
 ```
 
-
 ## Environment Variables
 
 All CSV module settings map to environment variables with the `CADDIE_CSV_` prefix:
@@ -826,15 +916,8 @@ All CSV module settings map to environment variables with the `CADDIE_CSV_` pref
 | `circle_r` | `CADDIE_CSV_CIRCLE_R` | Circle radius |
 | `circle_radii` | `CADDIE_CSV_CIRCLE_RADII` | Circle radii (comma-separated) |
 
-### Setting Environment Variables Directly
-
-```bash
-# Export configuration for current shell
-export CADDIE_CSV_FILE="target/data.csv"
-export CADDIE_CSV_X="distance"
-export CADDIE_CSV_Y="accuracy"
-
 # Check configuration
+```bash
 caddie csv:list
 ```
 
@@ -851,7 +934,7 @@ Scatter plots show the relationship between two continuous variables.
 caddie csv:set:plot scatter
 caddie csv:set:x distance
 caddie csv:set:y success_rate
-caddie csv:scatter
+caddie csv:plot
 ```
 
 ### Line Plots
@@ -863,7 +946,7 @@ Line plots connect data points to show trends over a continuous axis.
 caddie csv:set:plot line
 caddie csv:set:x distance
 caddie csv:set:y avg_attempts
-caddie csv:scatter --title "Putting Efficiency by Distance"
+caddie csv:line --title "Putting Efficiency by Distance"
 ```
 
 ### Bar Charts
@@ -875,7 +958,7 @@ Bar charts display categorical data with rectangular bars.
 caddie csv:set:plot bar
 caddie csv:set:x handicap_range
 caddie csv:set:y avg_score
-caddie csv:scatter --title "Average Score by Handicap"
+caddie csv:plot --title "Average Score by Handicap"
 ```
 
 ## Overlay Features
@@ -929,7 +1012,7 @@ caddie csv:scatter --title "Complete Putting Analysis"
 
 ### Required Format
 
-- Must have header row with column names
+- Must **have** header row with column names defined
 - Consistent separator throughout file
 - Numeric data should be numeric (no quotes for numbers)
 - Missing values can be empty fields or "NULL"
@@ -1008,103 +1091,6 @@ SELECT SQRT(x_position*x_position + y_position*y_position) as euclidean_distance
 SELECT STDDEV(distance_to_hole), VARIANCE(success_rate) FROM df
 ```
 
-## Data Analysis Examples
-
-### Circle Target Analysis
-
-```bash
-#!/bin/bash
-# putting-analysis.sh
-
-# Set up the analysis environment
-caddie csv:set:file "putting_results.csv"
-caddie csv:set:x "distance"
-caddie csv:set:y "success_rate"
-
-# Analyze overall performance
-caddie csv:query "SELECT COUNT(*) as total_shots, AVG(success) as overall_success_rate FROM df"
-
-# Performance by distance
-caddie csv:query "
-SELECT 
-    ROUND(distance, 1) as distance_bin,
-    COUNT(*) as attempts,
-    AVG(success*100) as success_rate_pct,
-    STDDEV(distance_to_hole) as avg_precision
-FROM df 
-GROUP BY ROUND(distance, 1) 
-ORDER BY distance_bin
-"
-
-# Performance by handicap
-caddie csv:query "
-SELECT 
-    CASE 
-        WHEN handicap <= 5 THEN 'Scratch'
-        WHEN handicap <= 15 THEN 'Mid'
-        WHEN handicap <= 25 THEN 'High'
-        ELSE 'Beginner'
-    END as skill_level,
-    COUNT(*) as total_shots,
-    AVG(success*100) as success_rate
-FROM df 
-GROUP BY skill_level
-ORDER BY handicap
-"
-
-# Create visualization
-caddie csv:set:circle on
-caddie csv:set:rings on
-caddie csv:set:circle_radii "3,6,9"
-caddie csv:scatter --title "Putting Performance Analysis"
-```
-
-### Shot Dispersion Analysis
-
-```bash
-#!/bin/bash
-# dispersion-analysis.sh
-
-caddie csv:set:file "shot_positions.csv"
-caddie csv:set:x "x_position"
-caddie csv:set:y "y_position"
-
-# Basic dispersion stats
-caddie csv:query "
-SELECT 
-    COUNT(*) as total_shots,
-    AVG(x_position) as avg_x,
-    AVG(y_position) as avg_y,
-    STDDEV(x_position) as x_precision,
-    STDDEV(y_position) as y_precision
-FROM df
-"
-
-# Distance from target analysis
-caddie csv:query "
-SELECT 
-    CASE 
-        WHEN distance_to_hole <= 1 THEN 'Tap-in'
-        WHEN distance_to_hole <= 3 THEN 'Very Close'
-        WHEN distance_to_hole <= 6 THEN 'Close'
-        WHEN distance_to_hole <= 15 THEN 'Medium'
-        ELSE 'Far'
-    END as proximity_category,
-    COUNT(*) as shot_count,
-    AVG(distance_to_hole) as avg_distance
-FROM df
-GROUP BY proximity_category
-ORDER BY avg_distance
-"
-
-# Create scatter plot with target context
-caddie csv:set:circle on
-caddie csv:set:rings on
-caddie csv:set:circle_r 2.125
-caddie csv:set:circle_radii "3,6,9"
-caddie csv:scatter --title "Shot Dispersion Around Circle"
-```
-
 ## Error Handling
 
 ### Common Errors
@@ -1145,8 +1131,8 @@ caddie csv:query "SELECT * FROM df LIMIT 1"
 **Solution**: Reinstall caddie modules
 
 ```bash
-cd /path/to/caddie.sh
-make install-dot
+cd /path/to/caddie-csv-tools
+make install
 caddie reload
 ```
 
@@ -1182,9 +1168,6 @@ Usage: caddie csv:<command> <arguments>
 If CSV operations fail due to Python environment problems:
 
 ```bash
-# Check if environment exists
-ls -la ~/.caddie_modules/bin/.caddie_venv
-
 # Reinitialize environment
 caddie csv:init
 
@@ -1288,86 +1271,6 @@ caddie csv:scatter --save output.png
 
 ## Examples
 
-### Complete Analysis Workflow
-
-```bash
-#!/bin/bash
-# complete-circle target-analysis.sh
-
-echo "=== Circle Target Analysis ==="
-
-# Initialize environment
-caddie csv:init
-
-# Set up default configuration
-caddie csv:set:file "analysis_data.csv"
-caddie csv:set:x "distance"
-caddie csv:set:y "success_rate"
-
-# Basic data exploration
-echo "--- Data Overview ---"
-caddie csv:query "SELECT COUNT(*) as total_shots FROM df"
-
-echo "--- Performance by Distance ---"
-caddie csv:query "
-SELECT 
-    CASE 
-        WHEN distance <= 3 THEN 'Short'
-        WHEN distance <= 10 THEN 'Medium' 
-        WHEN distance <= 20 THEN 'Long'
-        ELSE 'Very Long'
-    END as distance_category,
-    COUNT(*) as shots,
-    AVG(success*100) as success_rate_pct
-FROM df 
-GROUP BY distance_category
-ORDER BY MIN(distance)
-"
-
-echo "--- Performance by Skill Level ---"
-caddie csv:query "
-SELECT 
-    CASE 
-        WHEN handicap <= 5 THEN 'Expert'
-        WHEN handicap <= 15 THEN 'Intermediate'
-        WHEN handicap <= 25 THEN 'Beginner'
-        ELSE 'Novice'
-    END as skill_category,
-    COUNT(*) as shots,
-    AVG(success*100) as success_rate_pct,
-    AVG(distance_to_hole) as avg_precision
-FROM df 
-GROUP BY skill_category
-ORDER BY AVG(handicap)
-"
-
-# Create visualizations
-echo "--- Creating Visualizations ---"
-
-# Overall performance scatter
-caddie csv:set:plot scatter
-caddie csv:set:x distance
-caddie csv:set:y success_rate
-caddie csv:scatter --title "Overall Putting Performance" --save overall_performance.png
-
-# Dispersion analysis
-caddie csv:set:x x_position
-caddie csv:set:y y_position
-caddie csv:set:circle on
-caddie csv:set:rings on
-caddie csv:set:circle_r 2.125
-caddie csv:set:circle_radii "3,6,9"
-caddie csv:scatter --title "Shot Dispersion Analysis" --save dispersion.png
-
-# Clean up configuration
-echo "--- Cleaning Up ---"
-caddie csv:unset:file
-caddie csv:unset:x
-caddie csv:unset:y
-
-echo "✓ Analysis complete - check .png files for visualizations"
-```
-
 ### Development Testing Workflow
 
 ```bash
@@ -1404,38 +1307,9 @@ rm test_plot.png
 echo "✓ CSV module test completed successfully"
 ```
 
-### Integration with Other Modules
-
-```bash
-#!/bin/bash
-# circle target-workflow-integration.sh
-
-# Start with Rust simulation output
-echo "Running Monte Carlo simulation..."
-caddie rust:run:example multi_distance_demo
-
-# Analyze results with CSV tools
-caddie csv:set:file target/putt_data.csv
-caddie csv:set:x distance
-caddie csv:set:y success_rate
-
-# Create performance dashboard
-caddie csv:set:circle on
-caddie csv:set:rings on
-caddie csv:set:circle_radii "3,6,9"
-caddie csv:scatter --title "Simulation Results" --save simulation_results.png
-
-# Generate git commit with results
-caddie git:gadd target/simulation_results.png
-caddie git:gcommit "Add simulation results and analysis"
-
-echo "✓ Complete analysis workflow completed"
-```
-
 ## Related Documentation
 
 - **[Core Module](core.md)** - Basic Caddie.sh functions and debug system
-- **[Rust Module](rust.md)** - Monte Carlo simulation tools (generate data for CSV analysis)
 - **[Git Module](git.md)** - Version control for analysis results
 - **[Python Module](python.md)** - Python environment that CSV module builds upon
 
@@ -1447,4 +1321,4 @@ echo "✓ Complete analysis workflow completed"
 
 ---
 
-*The CSV module provides everything you need for professional performance data analysis. From simple queries to complex visualizations, it makes data-driven insights accessible and consistent.*
+*The CSV module provides everything you need for development level data analysis. From simple queries to basic visualizations, it makes data-driven insights accessible and consistent.*

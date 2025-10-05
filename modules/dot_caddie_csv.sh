@@ -4,6 +4,7 @@
 # Provides wrappers around csvql.py for querying and plotting data
 
 source "$HOME/.caddie_modules/.caddie_cli"
+source "$HOME/.caddie_modules/.caddie_csv_version"
 
 function caddie_csv_init_globals() {
     declare -gA CADDIE_CSV_ENV_MAP=(
@@ -363,6 +364,8 @@ function caddie_csv_list() {
     return 0
 }
 
+function caddie_csv_version() { caddie_csv_tools_version_show; return $?; }
+
 function caddie_csv_set_file()          { caddie_csv_set_alias_internal file "caddie csv:set:file <path>" "$@"; return $?; }
 function caddie_csv_get_file()          { caddie_csv_show_alias_internal file unformatted; return $?; }
 function caddie_csv_unset_file()        { caddie_csv_unset_alias_internal file; return $?; }
@@ -689,6 +692,7 @@ function caddie_csv_description() {
 
 function caddie_csv_help() {
     caddie cli:title "CSV / TSV Analytics"
+    caddie cli:indent "csv:version              Show current version"
     caddie cli:indent "csv:init                 Bootstrap csvql virtual environment"
     caddie cli:indent "csv:query [file] ...     Run csvql with optional SQL/flags"
     caddie cli:indent "csv:query:summary        Run csvql and show summarized output"
@@ -880,8 +884,8 @@ function caddie_csv_tail() {
 }
 
 function caddie_csv_commands() {
-    printf '%s' "csv:init csv:query csv:query:summary csv:plot csv:scatter csv:line csv:bar csv:head csv:tail csv:list csv:unset:all \
-csv:set:file csv:get:file csv:unset:file \
+    printf '%s' "csv:version csv:init csv:query csv:query:summary csv:plot csv:scatter csv:line csv:bar csv:head csv:tail csv:list csv:unset:all \
+csv:set:file csv:get:file csv:unset:file csv:prompt \
 csv:set:x csv:get:x csv:unset:x \
 csv:set:y csv:get:y csv:unset:y \
 csv:set:sep csv:get:sep csv:unset:sep \
@@ -901,6 +905,157 @@ csv:set:circle_r csv:get:circle_r csv:unset:circle_r \
 csv:set:circle_radii csv:get:circle_radii csv:unset:circle_radii \
 csv:session:save csv:session:list csv:session:view csv:session:restore csv:session:delete csv:session:delete:all"
     return 0
+}
+
+# csv:prompt — turn a natural-language prompt into caddie csv:* commands
+# Usage:
+#   caddie csv:prompt "plot target/30ft_positions.csv scatter x=x_position y=y_position where success=false and handicap<=10 title: 30ft Misses save to out/30ft.png save session as 30ft_misses"
+#   caddie csv:prompt --dry-run "..."
+function caddie_csv_prompt() {
+  local DRY=0
+  
+  if [[ "$1" == "--dry-run" ]]; then DRY=1; shift; fi
+
+  local PROMPT_RAW="$*"
+
+  if [[ -z "$PROMPT_RAW" ]]; then
+    caddie cli:red "Usage: caddie csv:prompt [--dry-run] \"<prompt>\""
+    return 2
+  fi
+
+  # --- Sanitize multi-line + backslash continuations ---
+  # 1) turn newlines into spaces
+  local PROMPT="${PROMPT_RAW//$'\n'/ }"
+
+  # 2) collapse sequences like "  \  " into a single space
+  PROMPT="$(sed -E 's/[[:space:]]*\\[[:space:]]*/ /g; s/[[:space:]]+/ /g' <<<"$PROMPT")"
+
+  shopt -s nocasematch
+
+  _m() { [[ "$PROMPT" =~ $1 ]] && printf '%s' "${BASH_REMATCH[1]}"; }
+
+  local path
+  local plot
+  local query
+  local x
+  local y
+  local title
+  local save
+  local where
+  local sql
+  local rings
+  local sess
+  local cx
+  local cy
+  local cr
+
+  # ERE-safe patterns (no (?:...))
+  path="$(_m '([[:alnum:]_./-]+\.csv)')"
+
+  # word-boundary alternative: capture group 2
+  if [[ "$PROMPT" =~ (^|[[:space:][:punct:]])(scatter|line|bar)($|[[:space:][:punct:]]) ]]; then
+    plot="${BASH_REMATCH[2]}"
+  fi
+
+  if [[ "$PROMPT" =~ (^|[[:space:][:punct:]])(query|summary)($|[[:space:][:punct:]]) ]]; then
+    query="${BASH_REMATCH[2]}"
+  fi
+
+  x="$(_m '[xX][[:space:]]*[:=][[:space:]]*([A-Za-z_][A-Za-z0-9_]*)')"
+  y="$(_m '[yY][[:space:]]*[:=][[:space:]]*([A-Za-z_][A-Za-z0-9_]*)')"
+
+  # ERE-safe save pattern -> \.(png|jpg|jpeg|svg|html)
+  save="$(_m 'save[[:space:]]*to[[:space:]]*([[:alnum:]_./-]+\.(png|jpg|jpeg|svg|html))')"
+
+  # sql: grab to end of line
+  sql="$(_m 'sql[[:space:]]*:[[:space:]]*(.*)')"
+
+  rings="$(_m 'rings[[:space:]]*[:=]?[[:space:]]*([0-9.,[:space:]-]+)')"
+  sess="$(_m 'save[[:space:]]+session[[:space:]]+as[[:space:]]+([[:alnum:]_.-]+)')"
+
+  # title: cut at next keyword
+  if [[ "$PROMPT" =~ title[[:space:]]*:[[:space:]]*(.+) ]]; then
+    title="${BASH_REMATCH[1]}"
+    title="$(sed -E 's/[[:space:]]*(save[[:space:]]+to|save[[:space:]]+session[[:space:]]+as|x[[:space:]]*[:=]|y[[:space:]]*[:=]|scatter|line|bar|sql:).*//I' <<<"$title" | sed -E 's/[[:space:]]+$//')"
+  fi
+
+  # WHERE: capture until next keyword, then trim any trailing "\" from user prompt
+  if [[ "$PROMPT" =~ [Ww][Hh][Ee][Rr][Ee][[:space:]]*(.+) ]]; then
+    where="$(sed -E 's/[[:space:]]*(title:|save[[:space:]]+to|save[[:space:]]+session[[:space:]]+as|x[[:space:]]*[:=]|y[[:space:]]*[:=]|scatter|line|bar|sql:).*//I' <<<"${BASH_REMATCH[1]}")"
+    where="$(sed -E 's/[[:space:]]+$//' <<<"$where")"
+    # If a stray backslash slipped in, drop it
+    [[ "$where" =~ \\$ ]] && where="${where%\\}"
+  fi
+
+  # circle at (x,y) r=...
+  if [[ "$PROMPT" =~ circle[[:space:]]*(at)?[[:space:]]*\(?[[:space:]]*([-0-9.]+)[[:space:]]*,[[:space:]]*([-0-9.]+)[[:space:]]*\)?([[:space:]]*r[[:space:]]*=?[[:space:]]*([-0-9.]+))? ]]; then
+    cx="${BASH_REMATCH[2]}"; cy="${BASH_REMATCH[3]}"; cr="${BASH_REMATCH[5]}"
+  fi
+
+  # --- Build commands ---
+  local cmds=()
+  cmds+=("caddie csv:unset:all")
+  [[ -n "$path"  ]] && cmds+=("caddie csv:set:file $path")
+  [[ -n "$plot"  ]] && cmds+=("caddie csv:set:plot ${plot,,}")
+  [[ -n "$x"     ]] && cmds+=("caddie csv:set:x $x")
+  [[ -n "$y"     ]] && cmds+=("caddie csv:set:y $y")
+  if [[ -n "$title" ]]; then
+    local esc_title; esc_title="$(sed "s/'/'\\\\''/g" <<<"$title")"
+    cmds+=("caddie csv:set:title '$esc_title'")
+  fi
+  [[ -n "$save"  ]] && cmds+=("caddie csv:set:save $save")
+
+
+  if [[ -n "$where" ]]; then
+    local esc_where; esc_where="$(sed "s/'/'\\\\''/g" <<<"$where")"
+    if [[ -z "${query}" ]]; then
+      cmds+=("caddie csv:set:scatter_filter '$esc_where'")
+    fi
+  fi
+
+  if [[ -n "$sql" ]]; then
+    local esc_sql; esc_sql="$(sed "s/'/'\\\\''/g" <<<"$sql")"
+    cmds+=("caddie csv:set:sql '$esc_sql'")
+  fi
+
+  if [[ -n "$cx" && -n "$cy" ]]; then
+    cmds+=("caddie csv:set:circle true")
+    cmds+=("caddie csv:set:circle_x $cx")
+    cmds+=("caddie csv:set:circle_y $cy")
+    [[ -n "$cr" ]] && cmds+=("caddie csv:set:circle_r $cr")
+  fi
+
+  if [[ -n "$rings" ]]; then
+    local rr; rr="$(tr -d ' ' <<<"$rings")"
+    cmds+=("caddie csv:set:rings true")
+    cmds+=("caddie csv:set:circle_radii $rr")
+  fi
+
+  cmds+=("caddie csv:list")
+
+  if [[ -n "${query}"  ]]; then
+    if [[ ${query} == "query" ]]; then
+      cmds+=("caddie csv:query")
+    else
+      cmds+=("caddie csv:query:summary")
+    fi
+  fi
+
+  case "${plot,,}" in
+    line)       cmds+=("caddie csv:line");;
+    bar)        cmds+=("caddie csv:bar");;
+    scatter)    cmds+=("caddie csv:scatter");;
+  esac
+
+  [[ -n "$sess" ]] && cmds+=("caddie csv:session:save $sess")
+
+  shopt -u nocasematch
+
+  if (( DRY )); then
+    printf '%s\n' "${cmds[@]}"
+  else
+    local cmd; for cmd in "${cmds[@]}"; do eval "$cmd"; done
+  fi
 }
 
 if declare -F caddie_prompt_register_segment >/dev/null 2>&1; then
@@ -986,3 +1141,5 @@ export -f caddie_csv_unset_circle_r
 export -f caddie_csv_set_circle_radii
 export -f caddie_csv_get_circle_radii
 export -f caddie_csv_unset_circle_radii
+export -f caddie_csv_prompt
+export -f caddie_csv_version
