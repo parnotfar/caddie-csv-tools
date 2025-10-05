@@ -1142,3 +1142,4 @@ export -f caddie_csv_set_circle_radii
 export -f caddie_csv_get_circle_radii
 export -f caddie_csv_unset_circle_radii
 export -f caddie_csv_prompt
+export -f caddie_csv_version
