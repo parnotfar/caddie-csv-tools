@@ -5,13 +5,13 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 
 ## Version
 
-1.1
+1.3
 
 ## Features
 
 - DuckDB-powered SQL querying with optional data visualisation
 - Session defaults via `csv:set:*` helpers (file, axes, filters, plot metadata)
-- Scatter, line, and bar chart support with matplotlib overlays
+- Scatter, line, and bar chart support with matplotlib overlays, custom axis scales/ranges, and binary segmentation
 - Head/tail previews, configurable pagers, and saved output targets
 - Automatic integration with caddie’s prompt and completion registries
 

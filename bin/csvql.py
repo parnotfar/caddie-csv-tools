@@ -17,6 +17,8 @@ SCRIPT_DIR = SCRIPT_PATH.parent
 VENV_DIR = SCRIPT_DIR / ".caddie_venv"
 REQUIREMENTS_PATH = SCRIPT_DIR / "requirements.txt"
 DEPENDENCIES = ["duckdb", "pandas", "matplotlib"]
+DEFAULT_SEGMENT_PALETTE = ["#1b9e77", "#d95f02", "#7570b3"]
+MISSING_SEGMENT_COLOR = "#9e9e9e"
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -126,6 +128,62 @@ def parse_ring_radii(raw: str | None) -> list[float]:
     return radii
 
 
+def parse_axis_range(raw: str | None) -> tuple[float | None, float | None, list[float]]:
+    if not raw:
+        return None, None, []
+    spec = raw.strip()
+    if not spec:
+        return None, None, []
+    if spec[0] in {"[", "("} and spec[-1] in {"]", ")"} and len(spec) >= 2:
+        spec = spec[1:-1]
+    parts = [part.strip() for part in spec.split(",")]
+    if not parts:
+        return None, None, []
+
+    def convert(token: str) -> float | None:
+        if not token:
+            return None
+        lowered = token.lower()
+        if lowered in {"none", "null", "auto"}:
+            return None
+        if lowered in {"+inf", "inf"}:
+            return float("inf")
+        if lowered == "-inf":
+            return float("-inf")
+        try:
+            return float(token)
+        except ValueError as exc:
+            raise SystemExit(f"Invalid axis range value: {token}") from exc
+
+    lower = convert(parts[0])
+    upper = convert(parts[-1]) if len(parts) > 1 else None
+    ticks: list[float] = []
+    if len(parts) > 2:
+        seen: set[float] = set()
+        for token in parts[1:-1]:
+            value = convert(token)
+            if value is None:
+                continue
+            if value not in seen:
+                ticks.append(value)
+                seen.add(value)
+    return lower, upper, ticks
+
+
+def resolve_segment_colors(raw: str | None, count: int) -> list[str]:
+    if count <= 0:
+        return []
+    if raw:
+        colors = [chunk.strip() for chunk in raw.split(",") if chunk.strip()]
+        if len(colors) < count:
+            raise SystemExit(f"--segment-colors requires at least {count} colors")
+        return colors[:count]
+    if count <= len(DEFAULT_SEGMENT_PALETTE):
+        return DEFAULT_SEGMENT_PALETTE[:count]
+    # Fallback by repeating the last palette color if more colors requested than defaults
+    return DEFAULT_SEGMENT_PALETTE + [DEFAULT_SEGMENT_PALETTE[-1]] * (count - len(DEFAULT_SEGMENT_PALETTE))
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Query CSV/TSV files with DuckDB SQL and optional plotting.",
@@ -157,6 +215,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--circle-y", type=float, default=env_float("CADDIE_CSV_CIRCLE_Y", 0.0), help="Y position for circle center")
     parser.add_argument("--circle-r", type=float, default=env_float("CADDIE_CSV_CIRCLE_R", 1.0), help="Circle radius")
     parser.add_argument("--circle-radii", dest="circle_radii", default=os.environ.get("CADDIE_CSV_CIRCLE_RADII"), help="Comma-separated radii for additional circles")
+    parser.add_argument("--x-scale", dest="x_scale", default=os.environ.get("CADDIE_CSV_X_SCALE"), help="Set matplotlib scale for the x-axis (e.g. linear, log)")
+    parser.add_argument("--y-scale", dest="y_scale", default=os.environ.get("CADDIE_CSV_Y_SCALE"), help="Set matplotlib scale for the y-axis (e.g. linear, log)")
+    parser.add_argument("--x-range", dest="x_range", default=os.environ.get("CADDIE_CSV_X_RANGE"), help="Override the displayed x-axis range; supports bracket, parenthesis, or comma-delimited forms")
+    parser.add_argument("--y-range", dest="y_range", default=os.environ.get("CADDIE_CSV_Y_RANGE"), help="Override the displayed y-axis range; same format as --x-range")
+    parser.add_argument("--segment-column", dest="segment_column", default=os.environ.get("CADDIE_CSV_SEGMENT_COLUMN"), help="Binary column used to color scatter plots")
+    parser.add_argument("--segment-colors", dest="segment_colors", default=os.environ.get("CADDIE_CSV_SEGMENT_COLORS"), help="Comma-separated colors matched to the binary segment values")
     return parser.parse_args(argv)
 
 
@@ -182,6 +246,11 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
         if not x_col or not y_col:
             raise SystemExit("Plotting requires both --x and --y (or CADDIE_CSV_X/CADDIE_CSV_Y)")
         require_columns([x_col, y_col], list(df.columns))
+    segment_column = getattr(args, "segment_column", None)
+    if segment_column:
+        if args.plot != "scatter":
+            raise SystemExit("--segment-column is only supported with scatter plots")
+        require_columns([segment_column], list(df.columns))
     plot_df = df
     if args.limit is not None:
         if args.limit <= 0:
@@ -189,7 +258,40 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
         plot_df = df.head(args.limit)
     fig, ax = plt.subplots(figsize=(8, 6))
     if args.plot == "scatter":
-        ax.scatter(plot_df[x_col], plot_df[y_col], alpha=0.8, edgecolor="black", linewidth=0.5)
+        if segment_column:
+            segment_series = plot_df[segment_column]
+            non_null_mask = segment_series.notna()
+            unique_values = list(pd.unique(segment_series[non_null_mask]))
+            if len(unique_values) > 2:
+                raise SystemExit(f"--segment-column expects a binary column; found {len(unique_values)} distinct values in '{segment_column}'")
+            if unique_values:
+                colors = resolve_segment_colors(args.segment_colors, len(unique_values))
+                for value, color in zip(unique_values, colors):
+                    mask = segment_series == value
+                    ax.scatter(
+                        plot_df.loc[mask, x_col],
+                        plot_df.loc[mask, y_col],
+                        alpha=0.8,
+                        edgecolor="black",
+                        linewidth=0.5,
+                        label=f"{segment_column} = {value}",
+                        color=color,
+                    )
+                if (~non_null_mask).any():
+                    ax.scatter(
+                        plot_df.loc[~non_null_mask, x_col],
+                        plot_df.loc[~non_null_mask, y_col],
+                        alpha=0.5,
+                        edgecolor="black",
+                        linewidth=0.4,
+                        label=f"{segment_column} = <missing>",
+                        color=MISSING_SEGMENT_COLOR,
+                    )
+                ax.legend(title=segment_column)
+            else:
+                ax.scatter(plot_df[x_col], plot_df[y_col], alpha=0.8, edgecolor="black", linewidth=0.5)
+        else:
+            ax.scatter(plot_df[x_col], plot_df[y_col], alpha=0.8, edgecolor="black", linewidth=0.5)
     elif args.plot == "line":
         ax.plot(plot_df[x_col], plot_df[y_col], marker="o")
     elif args.plot == "bar":
@@ -198,6 +300,26 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
         ax.set_title(args.title)
     ax.set_xlabel(x_col if x_col else "")
     ax.set_ylabel(y_col if y_col else "")
+    if args.x_scale:
+        try:
+            ax.set_xscale(args.x_scale)
+        except ValueError as exc:
+            raise SystemExit(f"Invalid x-axis scale '{args.x_scale}': {exc}") from exc
+    if args.y_scale:
+        try:
+            ax.set_yscale(args.y_scale)
+        except ValueError as exc:
+            raise SystemExit(f"Invalid y-axis scale '{args.y_scale}': {exc}") from exc
+    x_lower, x_upper, x_ticks = parse_axis_range(getattr(args, "x_range", None))
+    if x_lower is not None or x_upper is not None:
+        ax.set_xlim(left=x_lower, right=x_upper)
+    if x_ticks:
+        ax.set_xticks(x_ticks)
+    y_lower, y_upper, y_ticks = parse_axis_range(getattr(args, "y_range", None))
+    if y_lower is not None or y_upper is not None:
+        ax.set_ylim(bottom=y_lower, top=y_upper)
+    if y_ticks:
+        ax.set_yticks(y_ticks)
     if args.circle:
         circle = plt.Circle((args.circle_x, args.circle_y), args.circle_r, fill=False, color="darkgreen", linewidth=1.5)
         ax.add_patch(circle)

@@ -18,6 +18,12 @@ function caddie_csv_init_globals() {
         [save]=CADDIE_CSV_SAVE
         [success_filter]=CADDIE_CSV_SUCCESS_FILTER
         [scatter_filter]=CADDIE_CSV_SCATTER_FILTER
+        [x_scale]=CADDIE_CSV_X_SCALE
+        [y_scale]=CADDIE_CSV_Y_SCALE
+        [x_range]=CADDIE_CSV_X_RANGE
+        [y_range]=CADDIE_CSV_Y_RANGE
+        [segment_column]=CADDIE_CSV_SEGMENT_COLUMN
+        [segment_colors]=CADDIE_CSV_SEGMENT_COLORS
         [sql]=CADDIE_CSV_SQL
         [pager]=CADDIE_CSV_PAGER
         [circle]=CADDIE_CSV_CIRCLE
@@ -29,7 +35,7 @@ function caddie_csv_init_globals() {
     )
 
     declare -ga CADDIE_CSV_KEY_ORDER=(
-        file x y sep plot title limit save pager success_filter scatter_filter sql circle rings circle_x circle_y circle_r circle_radii
+        file x y sep plot title limit save pager success_filter scatter_filter x_scale y_scale x_range y_range segment_column segment_colors sql circle rings circle_x circle_y circle_r circle_radii
     )
 
     return 0
@@ -460,6 +466,30 @@ function caddie_csv_set_scatter_filter(){ caddie_csv_set_alias_internal scatter_
 function caddie_csv_get_scatter_filter(){ caddie_csv_show_alias_internal scatter_filter; return $?; }
 function caddie_csv_unset_scatter_filter(){ caddie_csv_unset_alias_internal scatter_filter; return $?; }
 
+function caddie_csv_set_x_scale(){ caddie_csv_set_alias_internal x_scale "caddie csv:set:x_scale <scale>" "$@"; return $?; }
+function caddie_csv_get_x_scale(){ caddie_csv_show_alias_internal x_scale; return $?; }
+function caddie_csv_unset_x_scale(){ caddie_csv_unset_alias_internal x_scale; return $?; }
+
+function caddie_csv_set_y_scale(){ caddie_csv_set_alias_internal y_scale "caddie csv:set:y_scale <scale>" "$@"; return $?; }
+function caddie_csv_get_y_scale(){ caddie_csv_show_alias_internal y_scale; return $?; }
+function caddie_csv_unset_y_scale(){ caddie_csv_unset_alias_internal y_scale; return $?; }
+
+function caddie_csv_set_x_range(){ caddie_csv_set_alias_internal x_range "caddie csv:set:x_range <start,end[,ticks...]>" "$@"; return $?; }
+function caddie_csv_get_x_range(){ caddie_csv_show_alias_internal x_range; return $?; }
+function caddie_csv_unset_x_range(){ caddie_csv_unset_alias_internal x_range; return $?; }
+
+function caddie_csv_set_y_range(){ caddie_csv_set_alias_internal y_range "caddie csv:set:y_range <start,end[,ticks...]>" "$@"; return $?; }
+function caddie_csv_get_y_range(){ caddie_csv_show_alias_internal y_range; return $?; }
+function caddie_csv_unset_y_range(){ caddie_csv_unset_alias_internal y_range; return $?; }
+
+function caddie_csv_set_segment_column(){ caddie_csv_set_alias_internal segment_column "caddie csv:set:segment_column <column>" "$@"; return $?; }
+function caddie_csv_get_segment_column(){ caddie_csv_show_alias_internal segment_column; return $?; }
+function caddie_csv_unset_segment_column(){ caddie_csv_unset_alias_internal segment_column; return $?; }
+
+function caddie_csv_set_segment_colors(){ caddie_csv_set_alias_internal segment_colors "caddie csv:set:segment_colors <color1,color2>" "$@"; return $?; }
+function caddie_csv_get_segment_colors(){ caddie_csv_show_alias_internal segment_colors; return $?; }
+function caddie_csv_unset_segment_colors(){ caddie_csv_unset_alias_internal segment_colors; return $?; }
+
 function caddie_csv_set_sql()           { caddie_csv_set_alias_internal sql "caddie csv:set:sql <query>" "$@"; return $?; }
 function caddie_csv_get_sql()           { caddie_csv_show_alias_internal sql; return $?; }
 function caddie_csv_unset_sql()         { caddie_csv_unset_alias_internal sql; return $?; }
@@ -608,6 +638,34 @@ function caddie_csv_plot_internal() {
         if [ -n "$scatter_filter" ]; then
             plot_args+=("--success-filter" "$scatter_filter")
         fi
+        local segment_column="${CADDIE_CSV_SEGMENT_COLUMN:-}"
+        if [ -n "$segment_column" ]; then
+            plot_args+=("--segment-column" "$segment_column")
+        fi
+        local segment_colors="${CADDIE_CSV_SEGMENT_COLORS:-}"
+        if [ -n "$segment_colors" ]; then
+            plot_args+=("--segment-colors" "$segment_colors")
+        fi
+    fi
+
+    local x_scale="${CADDIE_CSV_X_SCALE:-}"
+    if [ -n "$x_scale" ]; then
+        plot_args+=("--x-scale" "$x_scale")
+    fi
+
+    local y_scale="${CADDIE_CSV_Y_SCALE:-}"
+    if [ -n "$y_scale" ]; then
+        plot_args+=("--y-scale" "$y_scale")
+    fi
+
+    local x_range="${CADDIE_CSV_X_RANGE:-}"
+    if [ -n "$x_range" ]; then
+        plot_args+=("--x-range" "$x_range")
+    fi
+
+    local y_range="${CADDIE_CSV_Y_RANGE:-}"
+    if [ -n "$y_range" ]; then
+        plot_args+=("--y-range" "$y_range")
     fi
 
     if [ -n "$output_path" ]; then
@@ -716,7 +774,7 @@ function caddie_csv_help() {
     caddie cli:indent "csv:list                 Show all current defaults"
     caddie cli:blank
     caddie cli:title "Set Commands"
-    caddie cli:indent "csv:set:<key> <value>    Keys: file, x, y, sep, plot (scatter|line|bar), title, limit, save, pager, success_filter, scatter_filter, sql, circle, rings, circle_x, circle_y, circle_r, ring_radii"
+    caddie cli:indent "csv:set:<key> <value>    Keys: file, x, y, sep, plot (scatter|line|bar), title, limit, save, pager, success_filter, scatter_filter, x_scale, y_scale, x_range, y_range, segment_column, segment_colors, sql, circle, rings, circle_x, circle_y, circle_r, ring_radii"
     caddie cli:title "Get Commands"
     caddie cli:indent "csv:get:<key>            Show current value"
     caddie cli:title "Unset Commands"
@@ -896,6 +954,12 @@ csv:set:save csv:get:save csv:unset:save \
 csv:set:pager csv:get:pager csv:unset:pager \
 csv:set:success_filter csv:get:success_filter csv:unset:success_filter \
 csv:set:scatter_filter csv:get:scatter_filter csv:unset:scatter_filter \
+csv:set:x_scale csv:get:x_scale csv:unset:x_scale \
+csv:set:y_scale csv:get:y_scale csv:unset:y_scale \
+csv:set:x_range csv:get:x_range csv:unset:x_range \
+csv:set:y_range csv:get:y_range csv:unset:y_range \
+csv:set:segment_column csv:get:segment_column csv:unset:segment_column \
+csv:set:segment_colors csv:get:segment_colors csv:unset:segment_colors \
 csv:set:sql csv:get:sql csv:unset:sql \
 csv:set:circle csv:get:circle csv:unset:circle \
 csv:set:rings csv:get:rings csv:unset:rings \
@@ -948,6 +1012,12 @@ function caddie_csv_prompt() {
   local cx
   local cy
   local cr
+  local segment_column
+  local segment_palette
+  local x_scale_value
+  local y_scale_value
+  local x_range_spec
+  local y_range_spec
 
   # ERE-safe patterns (no (?:...))
   path="$(_m '([[:alnum:]_./-]+\.csv)')"
@@ -972,6 +1042,33 @@ function caddie_csv_prompt() {
 
   rings="$(_m 'rings[[:space:]]*[:=]?[[:space:]]*([0-9.,[:space:]-]+)')"
   sess="$(_m 'save[[:space:]]+session[[:space:]]+as[[:space:]]+([[:alnum:]_.-]+)')"
+
+  if [[ "$PROMPT" =~ segment(_column)?[[:space:]]*[:=]?[[:space:]]*([A-Za-z_][A-Za-z0-9_]*) ]]; then
+    segment_column="${BASH_REMATCH[2]}"
+  fi
+
+  if [[ "$PROMPT" =~ segment_colors[[:space:]]*[:=]?[[:space:]]*([#:[:alnum:],._[:space:]-]+) ]]; then
+    segment_palette="${BASH_REMATCH[1]}"
+    segment_palette="$(tr -d ' ' <<<"$segment_palette")"
+  fi
+
+  if [[ "$PROMPT" =~ x_scale[[:space:]]*[:=]?[[:space:]]*([[:alnum:]_.-]+) ]]; then
+    x_scale_value="${BASH_REMATCH[1]}"
+  fi
+
+  if [[ "$PROMPT" =~ y_scale[[:space:]]*[:=]?[[:space:]]*([[:alnum:]_.-]+) ]]; then
+    y_scale_value="${BASH_REMATCH[1]}"
+  fi
+
+  if [[ "$PROMPT" =~ x_range[[:space:]]*[:=]?[[:space:]]*([0-9.,[:space:]\[\]()+-]+) ]]; then
+    x_range_spec="${BASH_REMATCH[1]}"
+    x_range_spec="$(sed -E 's/[[:space:]]+//g' <<<"$x_range_spec")"
+  fi
+
+  if [[ "$PROMPT" =~ y_range[[:space:]]*[:=]?[[:space:]]*([0-9.,[:space:]\[\]()+-]+) ]]; then
+    y_range_spec="${BASH_REMATCH[1]}"
+    y_range_spec="$(sed -E 's/[[:space:]]+//g' <<<"$y_range_spec")"
+  fi
 
   # title: cut at next keyword
   if [[ "$PROMPT" =~ title[[:space:]]*:[[:space:]]*(.+) ]]; then
@@ -1004,6 +1101,33 @@ function caddie_csv_prompt() {
     cmds+=("caddie csv:set:title '$esc_title'")
   fi
   [[ -n "$save"  ]] && cmds+=("caddie csv:set:save $save")
+
+  if [[ -n "$segment_column" ]]; then
+    cmds+=("caddie csv:set:segment_column $segment_column")
+  fi
+
+  if [[ -n "$segment_palette" ]]; then
+    local esc_palette; esc_palette="$(sed "s/'/'\\\\''/g" <<<"$segment_palette")"
+    cmds+=("caddie csv:set:segment_colors '$esc_palette'")
+  fi
+
+  if [[ -n "$x_scale_value" ]]; then
+    cmds+=("caddie csv:set:x_scale ${x_scale_value,,}")
+  fi
+
+  if [[ -n "$y_scale_value" ]]; then
+    cmds+=("caddie csv:set:y_scale ${y_scale_value,,}")
+  fi
+
+  if [[ -n "$x_range_spec" ]]; then
+    local esc_x_range; esc_x_range="$(sed "s/'/'\\\\''/g" <<<"$x_range_spec")"
+    cmds+=("caddie csv:set:x_range '$esc_x_range'")
+  fi
+
+  if [[ -n "$y_range_spec" ]]; then
+    local esc_y_range; esc_y_range="$(sed "s/'/'\\\\''/g" <<<"$y_range_spec")"
+    cmds+=("caddie csv:set:y_range '$esc_y_range'")
+  fi
 
 
   if [[ -n "$where" ]]; then
@@ -1120,6 +1244,24 @@ export -f caddie_csv_unset_success_filter
 export -f caddie_csv_set_scatter_filter
 export -f caddie_csv_get_scatter_filter
 export -f caddie_csv_unset_scatter_filter
+export -f caddie_csv_set_x_scale
+export -f caddie_csv_get_x_scale
+export -f caddie_csv_unset_x_scale
+export -f caddie_csv_set_y_scale
+export -f caddie_csv_get_y_scale
+export -f caddie_csv_unset_y_scale
+export -f caddie_csv_set_x_range
+export -f caddie_csv_get_x_range
+export -f caddie_csv_unset_x_range
+export -f caddie_csv_set_y_range
+export -f caddie_csv_get_y_range
+export -f caddie_csv_unset_y_range
+export -f caddie_csv_set_segment_column
+export -f caddie_csv_get_segment_column
+export -f caddie_csv_unset_segment_column
+export -f caddie_csv_set_segment_colors
+export -f caddie_csv_get_segment_colors
+export -f caddie_csv_unset_segment_colors
 export -f caddie_csv_set_sql
 export -f caddie_csv_get_sql
 export -f caddie_csv_unset_sql
