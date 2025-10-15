@@ -102,7 +102,7 @@ You can combine the supported syntax in any order:
 | Plot type               | `scatter` \| `line` \| `bar`   | Controls which `csv:*` plot command runs             |
 | Axes                    | `x=<col> y=<col>`              | Both required for plotting                           |
 | Axis scale              | `x_scale=<mode>` `y_scale=<mode>` | Applies matplotlib scaling (e.g., `linear`, `log`, `symlog`) |
-| Axis range              | `x_range <spec>` `y_range <spec>` | Comma list with optional brackets/parentheses; blanks mean open bounds |
+| Axis range              | `x_range=<spec>` `y_range=<spec>` | Comma list with optional brackets/parentheses; blanks mean open bounds |
 | Filter → scatter_filter | `where <predicate>`            | Copied verbatim to `csv:set:scatter_filter`          |
 | Segment column          | `segment=<column>`             | Sets `csv:set:segment_column` for binary coloring    |
 | Segment colors          | `segment_colors <c1,c2>`       | Optional palette override mapped to segment values  |

@@ -1047,7 +1047,7 @@ function caddie_csv_prompt() {
     segment_column="${BASH_REMATCH[2]}"
   fi
 
-  if [[ "$PROMPT" =~ segment_colors[[:space:]]*[:=]?[[:space:]]*([#[:alnum:],._[:space:]-]+) ]]; then
+  if [[ "$PROMPT" =~ segment_colors[[:space:]]*[:=]?[[:space:]]*([#:[:alnum:],._[:space:]-]+) ]]; then
     segment_palette="${BASH_REMATCH[1]}"
     segment_palette="$(tr -d ' ' <<<"$segment_palette")"
   fi
