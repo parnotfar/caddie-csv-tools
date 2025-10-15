@@ -101,7 +101,11 @@ You can combine the supported syntax in any order:
 | CSV file                | `path/to/file.csv`             | First `*.csv` in the prompt is used                  |
 | Plot type               | `scatter` \| `line` \| `bar`   | Controls which `csv:*` plot command runs             |
 | Axes                    | `x=<col> y=<col>`              | Both required for plotting                           |
+| Axis scale              | `x_scale=<mode>` `y_scale=<mode>` | Applies matplotlib scaling (e.g., `linear`, `log`, `symlog`) |
+| Axis range              | `x_range <spec>` `y_range <spec>` | Comma list with optional brackets/parentheses; blanks mean open bounds |
 | Filter → scatter_filter | `where <predicate>`            | Copied verbatim to `csv:set:scatter_filter`          |
+| Segment column          | `segment=<column>`             | Sets `csv:set:segment_column` for binary coloring    |
+| Segment colors          | `segment_colors <c1,c2>`       | Optional palette override mapped to segment values  |
 | Title                   | `title: <text>`                | Title set up to the next keyword (e.g., `save to`)   |
 | Save path               | `save to path.png`             | Passed to `csv:set:save`. (HTML is allowed for consistency; rendering remains matplotlib.) |
 | Define SQL              | `sql: <query>`                 | Passed to `csv:set:sql` (e.g., `sql: select * from df where success=false`) |
@@ -127,6 +131,11 @@ title: 25ft dispersion save to out/25ft.png"
 caddie csv:prompt "plot data/putts.csv scatter x=x_position y=y_position \
 sql: select * from df where success=false limit 500 \
 title: Misses (first 500) save to out/misses.png"
+
+# 4) Segment by success and clamp ranges
+caddie csv:prompt "plot data/15ft.csv scatter x=x_position y=y_position \
+segment=success segment_colors tab:green,tab:orange \
+x_range [-3,3] y_range (-3,3) title: Success vs Miss"
 ```
 
 #### Tips & Edge Cases
@@ -400,15 +409,22 @@ CSV session defaults
   title            (unset)
   limit            (unset)
   save             (unset)
+  pager            (unset)
   success_filter   (unset)
   scatter_filter   (unset)
+  x_scale          (unset)
+  y_scale          (unset)
+  x_range          (unset)
+  y_range          (unset)
+  segment_column   (unset)
+  segment_colors   (unset)
   sql              (unset)
-  circle             (unset)
+  circle           (unset)
   rings            (unset)
-  circle_x           (unset)
-  circle_y           (unset)
-  circle_r           (unset)
-  circle_radii       (unset)
+  circle_x         (unset)
+  circle_y         (unset)
+  circle_r         (unset)
+  circle_radii     (unset)
 ```
 
 ### Configuration Commands
@@ -743,6 +759,80 @@ caddie csv:set:segment_colors "#2ca02c,#d62728"
 ✓ Set segment colors to tab:green,tab:red
 ```
 
+#### Axis Scale Configuration
+
+##### `caddie csv:set:x_scale <scale>`
+
+Set the matplotlib scale for the x-axis.
+
+**Arguments:**
+- `scale`: Any valid matplotlib scale mode (`linear`, `log`, `symlog`, `logit`, etc.)
+
+**Examples:**
+```bash
+# Use logarithmic x-axis
+caddie csv:set:x_scale log
+
+# Reset to linear scaling
+caddie csv:set:x_scale linear
+```
+
+##### `caddie csv:set:y_scale <scale>`
+
+Set the matplotlib scale for the y-axis.
+
+**Arguments:**
+- `scale`: Any valid matplotlib scale mode
+
+**Examples:**
+```bash
+# Highlight large misses with a log scale
+caddie csv:set:y_scale log
+
+# Customise per-plot on the command line
+caddie csv:plot --y-scale symlog
+```
+
+##### `caddie csv:set:x_range <start,end[,ticks...]>`
+
+Override the plotted extent for the x-axis.
+
+**Arguments:**
+- `start,end[,ticks...]`: Comma-separated values; wrap in `[]`/`()` for readability, leave a side blank for open bounds
+
+**Examples:**
+```bash
+# Clamp to 0–50 feet
+caddie csv:set:x_range [0,50]
+
+# Auto lower bound, cap the top at 25
+caddie csv:set:x_range (,25]
+
+# Include an intermediate tick at 12 while keeping auto upper bound
+caddie csv:set:x_range [0,12,]
+```
+Intermediate values between the first and last entry become explicit tick marks. Brackets vs parentheses are cosmetic; both select the same behaviour, but parentheses can signal an open bound when reading the spec back later.
+
+##### `caddie csv:set:y_range <start,end[,ticks...]>`
+
+Override the plotted extent for the y-axis.
+
+**Arguments:**
+- `start,end[,ticks...]`: Same format as `x_range`
+
+**Examples:**
+```bash
+# Force the y-axis to show from -15 to 15
+caddie csv:set:y_range (-15,15)
+
+# Leave the upper bound automatic while setting a floor
+caddie csv:set:y_range [0,]
+
+# Provide explicit ticks at 0, 5, and 10 feet
+caddie csv:set:y_range [0,5,10]
+```
+As with `x_range`, inner values map to ticks while the outer values act as bounds when provided. Leaving either side blank keeps matplotlib's automatic bound on that edge.
+
 #### Circle Overlay Configuration
 
 ##### `caddie csv:set:circle <on|off>`
@@ -951,6 +1041,10 @@ All CSV module settings map to environment variables with the `CADDIE_CSV_` pref
 | `sql` | `CADDIE_CSV_SQL` | Default SQL query |
 | `success_filter` | `CADDIE_CSV_SUCCESS_FILTER` | sql predicate for success filtering |
 | `scatter_filter` | `CADDIE_CSV_SCATTER_FILTER` | SQL predicate for scatter plot filtering |
+| `x_scale` | `CADDIE_CSV_X_SCALE` | Matplotlib scale for x-axis |
+| `y_scale` | `CADDIE_CSV_Y_SCALE` | Matplotlib scale for y-axis |
+| `x_range` | `CADDIE_CSV_X_RANGE` | Axis bounds and ticks override for x-axis |
+| `y_range` | `CADDIE_CSV_Y_RANGE` | Axis bounds and ticks override for y-axis |
 | `segment_column` | `CADDIE_CSV_SEGMENT_COLUMN` | Binary column used to color scatter plots |
 | `segment_colors` | `CADDIE_CSV_SEGMENT_COLORS` | Custom colors for binary segment groups |
 | `circle` | `CADDIE_CSV_CIRCLE` | Enable circle overlay |
@@ -984,6 +1078,16 @@ caddie csv:plot
 caddie csv:set:segment_column success
 caddie csv:set:segment_colors "tab:green,tab:orange"    # optional override
 caddie csv:plot
+
+# Combine with log scaling to emphasise dispersion tails
+caddie csv:set:x_scale log
+caddie csv:set:y_scale log
+caddie csv:plot --title "Log-scale dispersion"
+
+# Clamp the view to ±3 feet on both axes
+caddie csv:set:x_range [-3,3]
+caddie csv:set:y_range (-3,3)
+caddie csv:plot --title "Centered dispersion window"
 ```
 
 When a segment column is set, the tool automatically renders each binary value
