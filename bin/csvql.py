@@ -17,6 +17,8 @@ SCRIPT_DIR = SCRIPT_PATH.parent
 VENV_DIR = SCRIPT_DIR / ".caddie_venv"
 REQUIREMENTS_PATH = SCRIPT_DIR / "requirements.txt"
 DEPENDENCIES = ["duckdb", "pandas", "matplotlib"]
+DEFAULT_SEGMENT_PALETTE = ["#1b9e77", "#d95f02", "#7570b3"]
+MISSING_SEGMENT_COLOR = "#9e9e9e"
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -126,6 +128,20 @@ def parse_ring_radii(raw: str | None) -> list[float]:
     return radii
 
 
+def resolve_segment_colors(raw: str | None, count: int) -> list[str]:
+    if count <= 0:
+        return []
+    if raw:
+        colors = [chunk.strip() for chunk in raw.split(",") if chunk.strip()]
+        if len(colors) < count:
+            raise SystemExit(f"--segment-colors requires at least {count} colors")
+        return colors[:count]
+    if count <= len(DEFAULT_SEGMENT_PALETTE):
+        return DEFAULT_SEGMENT_PALETTE[:count]
+    # Fallback by repeating the last palette color if more colors requested than defaults
+    return DEFAULT_SEGMENT_PALETTE + [DEFAULT_SEGMENT_PALETTE[-1]] * (count - len(DEFAULT_SEGMENT_PALETTE))
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Query CSV/TSV files with DuckDB SQL and optional plotting.",
@@ -157,6 +173,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--circle-y", type=float, default=env_float("CADDIE_CSV_CIRCLE_Y", 0.0), help="Y position for circle center")
     parser.add_argument("--circle-r", type=float, default=env_float("CADDIE_CSV_CIRCLE_R", 1.0), help="Circle radius")
     parser.add_argument("--circle-radii", dest="circle_radii", default=os.environ.get("CADDIE_CSV_CIRCLE_RADII"), help="Comma-separated radii for additional circles")
+    parser.add_argument("--segment-column", dest="segment_column", default=os.environ.get("CADDIE_CSV_SEGMENT_COLUMN"), help="Binary column used to color scatter plots")
+    parser.add_argument("--segment-colors", dest="segment_colors", default=os.environ.get("CADDIE_CSV_SEGMENT_COLORS"), help="Comma-separated colors matched to the binary segment values")
     return parser.parse_args(argv)
 
 
@@ -182,6 +200,11 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
         if not x_col or not y_col:
             raise SystemExit("Plotting requires both --x and --y (or CADDIE_CSV_X/CADDIE_CSV_Y)")
         require_columns([x_col, y_col], list(df.columns))
+    segment_column = getattr(args, "segment_column", None)
+    if segment_column:
+        if args.plot != "scatter":
+            raise SystemExit("--segment-column is only supported with scatter plots")
+        require_columns([segment_column], list(df.columns))
     plot_df = df
     if args.limit is not None:
         if args.limit <= 0:
@@ -189,7 +212,40 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
         plot_df = df.head(args.limit)
     fig, ax = plt.subplots(figsize=(8, 6))
     if args.plot == "scatter":
-        ax.scatter(plot_df[x_col], plot_df[y_col], alpha=0.8, edgecolor="black", linewidth=0.5)
+        if segment_column:
+            segment_series = plot_df[segment_column]
+            non_null_mask = segment_series.notna()
+            unique_values = list(pd.unique(segment_series[non_null_mask]))
+            if len(unique_values) > 2:
+                raise SystemExit(f"--segment-column expects a binary column; found {len(unique_values)} distinct values in '{segment_column}'")
+            if unique_values:
+                colors = resolve_segment_colors(args.segment_colors, len(unique_values))
+                for value, color in zip(unique_values, colors):
+                    mask = segment_series == value
+                    ax.scatter(
+                        plot_df.loc[mask, x_col],
+                        plot_df.loc[mask, y_col],
+                        alpha=0.8,
+                        edgecolor="black",
+                        linewidth=0.5,
+                        label=f"{segment_column} = {value}",
+                        color=color,
+                    )
+                if (~non_null_mask).any():
+                    ax.scatter(
+                        plot_df.loc[~non_null_mask, x_col],
+                        plot_df.loc[~non_null_mask, y_col],
+                        alpha=0.5,
+                        edgecolor="black",
+                        linewidth=0.4,
+                        label=f"{segment_column} = <missing>",
+                        color=MISSING_SEGMENT_COLOR,
+                    )
+                ax.legend(title=segment_column)
+            else:
+                ax.scatter(plot_df[x_col], plot_df[y_col], alpha=0.8, edgecolor="black", linewidth=0.5)
+        else:
+            ax.scatter(plot_df[x_col], plot_df[y_col], alpha=0.8, edgecolor="black", linewidth=0.5)
     elif args.plot == "line":
         ax.plot(plot_df[x_col], plot_df[y_col], marker="o")
     elif args.plot == "bar":

@@ -18,6 +18,8 @@ function caddie_csv_init_globals() {
         [save]=CADDIE_CSV_SAVE
         [success_filter]=CADDIE_CSV_SUCCESS_FILTER
         [scatter_filter]=CADDIE_CSV_SCATTER_FILTER
+        [segment_column]=CADDIE_CSV_SEGMENT_COLUMN
+        [segment_colors]=CADDIE_CSV_SEGMENT_COLORS
         [sql]=CADDIE_CSV_SQL
         [pager]=CADDIE_CSV_PAGER
         [circle]=CADDIE_CSV_CIRCLE
@@ -29,7 +31,7 @@ function caddie_csv_init_globals() {
     )
 
     declare -ga CADDIE_CSV_KEY_ORDER=(
-        file x y sep plot title limit save pager success_filter scatter_filter sql circle rings circle_x circle_y circle_r circle_radii
+        file x y sep plot title limit save pager success_filter scatter_filter segment_column segment_colors sql circle rings circle_x circle_y circle_r circle_radii
     )
 
     return 0
@@ -460,6 +462,14 @@ function caddie_csv_set_scatter_filter(){ caddie_csv_set_alias_internal scatter_
 function caddie_csv_get_scatter_filter(){ caddie_csv_show_alias_internal scatter_filter; return $?; }
 function caddie_csv_unset_scatter_filter(){ caddie_csv_unset_alias_internal scatter_filter; return $?; }
 
+function caddie_csv_set_segment_column(){ caddie_csv_set_alias_internal segment_column "caddie csv:set:segment_column <column>" "$@"; return $?; }
+function caddie_csv_get_segment_column(){ caddie_csv_show_alias_internal segment_column; return $?; }
+function caddie_csv_unset_segment_column(){ caddie_csv_unset_alias_internal segment_column; return $?; }
+
+function caddie_csv_set_segment_colors(){ caddie_csv_set_alias_internal segment_colors "caddie csv:set:segment_colors <color1,color2>" "$@"; return $?; }
+function caddie_csv_get_segment_colors(){ caddie_csv_show_alias_internal segment_colors; return $?; }
+function caddie_csv_unset_segment_colors(){ caddie_csv_unset_alias_internal segment_colors; return $?; }
+
 function caddie_csv_set_sql()           { caddie_csv_set_alias_internal sql "caddie csv:set:sql <query>" "$@"; return $?; }
 function caddie_csv_get_sql()           { caddie_csv_show_alias_internal sql; return $?; }
 function caddie_csv_unset_sql()         { caddie_csv_unset_alias_internal sql; return $?; }
@@ -607,6 +617,14 @@ function caddie_csv_plot_internal() {
         local scatter_filter="${CADDIE_CSV_SCATTER_FILTER:-}"
         if [ -n "$scatter_filter" ]; then
             plot_args+=("--success-filter" "$scatter_filter")
+        fi
+        local segment_column="${CADDIE_CSV_SEGMENT_COLUMN:-}"
+        if [ -n "$segment_column" ]; then
+            plot_args+=("--segment-column" "$segment_column")
+        fi
+        local segment_colors="${CADDIE_CSV_SEGMENT_COLORS:-}"
+        if [ -n "$segment_colors" ]; then
+            plot_args+=("--segment-colors" "$segment_colors")
         fi
     fi
 
@@ -896,6 +914,8 @@ csv:set:save csv:get:save csv:unset:save \
 csv:set:pager csv:get:pager csv:unset:pager \
 csv:set:success_filter csv:get:success_filter csv:unset:success_filter \
 csv:set:scatter_filter csv:get:scatter_filter csv:unset:scatter_filter \
+csv:set:segment_column csv:get:segment_column csv:unset:segment_column \
+csv:set:segment_colors csv:get:segment_colors csv:unset:segment_colors \
 csv:set:sql csv:get:sql csv:unset:sql \
 csv:set:circle csv:get:circle csv:unset:circle \
 csv:set:rings csv:get:rings csv:unset:rings \
@@ -1120,6 +1140,12 @@ export -f caddie_csv_unset_success_filter
 export -f caddie_csv_set_scatter_filter
 export -f caddie_csv_get_scatter_filter
 export -f caddie_csv_unset_scatter_filter
+export -f caddie_csv_set_segment_column
+export -f caddie_csv_get_segment_column
+export -f caddie_csv_unset_segment_column
+export -f caddie_csv_set_segment_colors
+export -f caddie_csv_get_segment_colors
+export -f caddie_csv_unset_segment_colors
 export -f caddie_csv_set_sql
 export -f caddie_csv_get_sql
 export -f caddie_csv_unset_sql

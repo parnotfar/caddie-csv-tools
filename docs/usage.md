@@ -701,6 +701,48 @@ caddie csv:set:scatter_filter "distance_to_hole < 50"
 ✓ Set scatter filter to handicap BETWEEN 10 AND 20
 ```
 
+##### `caddie csv:set:segment_column <column>`
+
+Assign a binary column that will be used to color scatter plot points.
+
+**Arguments:**
+- `column`: Column name in the result set that contains two distinct values (excluding NULL)
+
+**Examples:**
+```bash
+# Color scatter points by success flag
+caddie csv:set:segment_column success
+
+# Track make/miss column
+caddie csv:set:segment_column made_putt
+```
+
+**Output:**
+```
+✓ Set segment column to success
+```
+
+##### `caddie csv:set:segment_colors <color1,color2>`
+
+Override the default color palette for the segment column.
+
+**Arguments:**
+- `color1,color2`: Comma-separated matplotlib colors or hex codes (applied in the order values appear)
+
+**Examples:**
+```bash
+# Use custom colors for success/failure
+caddie csv:set:segment_colors "tab:green,tab:red"
+
+# Hex color codes are supported
+caddie csv:set:segment_colors "#2ca02c,#d62728"
+```
+
+**Output:**
+```
+✓ Set segment colors to tab:green,tab:red
+```
+
 #### Circle Overlay Configuration
 
 ##### `caddie csv:set:circle <on|off>`
@@ -909,6 +951,8 @@ All CSV module settings map to environment variables with the `CADDIE_CSV_` pref
 | `sql` | `CADDIE_CSV_SQL` | Default SQL query |
 | `success_filter` | `CADDIE_CSV_SUCCESS_FILTER` | sql predicate for success filtering |
 | `scatter_filter` | `CADDIE_CSV_SCATTER_FILTER` | SQL predicate for scatter plot filtering |
+| `segment_column` | `CADDIE_CSV_SEGMENT_COLUMN` | Binary column used to color scatter plots |
+| `segment_colors` | `CADDIE_CSV_SEGMENT_COLORS` | Custom colors for binary segment groups |
 | `circle` | `CADDIE_CSV_CIRCLE` | Enable circle overlay |
 | `rings` | `CADDIE_CSV_RINGS` | Enable ring overlay |
 | `circle_x` | `CADDIE_CSV_CIRCLE_X` | Circle center X position |
@@ -935,7 +979,16 @@ caddie csv:set:plot scatter
 caddie csv:set:x distance
 caddie csv:set:y success_rate
 caddie csv:plot
+
+# Color-code makes vs misses
+caddie csv:set:segment_column success
+caddie csv:set:segment_colors "tab:green,tab:orange"    # optional override
+caddie csv:plot
 ```
+
+When a segment column is set, the tool automatically renders each binary value
+with a distinct color (teal/orange by default) and adds a legend. Missing values
+are shown in grey so they remain easy to spot without overwhelming the chart.
 
 ### Line Plots
 
