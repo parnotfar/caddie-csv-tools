@@ -4,7 +4,7 @@
 source "$HOME/.caddie_modules/.caddie_cli"
 
 # Private version variable
-CADDIE_CSV_TOOLS_VERSION="3.7"
+CADDIE_CSV_TOOLS_VERSION="1.4"
 
 # Function to get the current version
 function caddie_csv_tools_version_get() {

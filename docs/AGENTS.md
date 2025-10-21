@@ -5,7 +5,7 @@ typing the first token of a command, pressing <kbd>return</kbd>, and then typing
 
 ```text
 caddie> rust
-caddie[rust]-3.7>
+caddie[rust]-1.4>
 ```
 
 The prompt reflects the active mode (`rust` in the example) and the agent version, making it easy to see which command
@@ -17,7 +17,7 @@ The CSV tools module integrates with the same prompt stack:
 
 ```text
 caddie> csv
-caddie[csv]-3.7>
+caddie[csv]-1.4>
 ```
 
 Once the CSV mode is active, all `csv:*` commands are available without the `csv:` prefix. Typing `help` shows the CSV
@@ -25,12 +25,12 @@ command reference, and `exit` unwinds back to the previous prompt level.
 
 ### Nested SQL Prompt
 
-Version 3.7 introduces a dedicated SQL prompt so you can compose and run multi-line statements without wrapping them in
+Version 1.4 introduces a dedicated SQL prompt so you can compose and run multi-line statements without wrapping them in
 `set sql '...'` calls. Drop into the nested prompt with:
 
 ```text
-caddie[csv]-3.7> sql
-caddie[csv sql]-3.7>
+caddie[csv]-1.4> sql
+caddie[csv sql]-1.4>
 ```
 
 Key behaviours:
@@ -39,7 +39,7 @@ Key behaviours:
 - `\g` (or `\go`) executes the current buffer, reusing the last statement if the buffer is empty
 - `\summary` executes the buffer via `csv:query:summary`
 - `\show`, `\history`, and `\clear` manage session defaults and in-flight queries
-- `\q` (or `\quit`) exits back to `caddie[csv]-3.7>`
+- `\q` (or `\quit`) exits back to `caddie[csv]-1.4>`
 
 The SQL prompt updates `CADDIE_CSV_SQL`, so subsequent `csv:query` invocations (even outside the prompt) reuse the last
 statement.

@@ -584,8 +584,8 @@ current session and runs `csv:query`; use `\summary` to jump straight to `csv:qu
 **Interactive flow:**
 ```text
 caddie> csv
-caddie[csv]-3.7> sql
-caddie[csv sql]-3.7> SELECT distance,
+caddie[csv]-1.4> sql
+caddie[csv sql]-1.4> SELECT distance,
 ...>        AVG(success) AS make_rate
 ...>   FROM df
 ...>   GROUP BY distance;

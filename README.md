@@ -5,7 +5,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 
 ## Version
 
-3.7
+1.4
 
 ## Features
 
