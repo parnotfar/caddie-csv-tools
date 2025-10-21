@@ -494,6 +494,168 @@ function caddie_csv_set_sql()           { caddie_csv_set_alias_internal sql "cad
 function caddie_csv_get_sql()           { caddie_csv_show_alias_internal sql; return $?; }
 function caddie_csv_unset_sql()         { caddie_csv_unset_alias_internal sql; return $?; }
 
+function caddie_csv_sql_preview_internal() {
+    local sql="$1"
+    local preview
+    preview=$(printf '%s' "$sql" | tr '\n' ' ' | tr -s ' ')
+    if [ ${#preview} -gt 96 ]; then
+        preview="${preview:0:93}..."
+    fi
+    printf '%s' "$preview"
+    return 0
+}
+
+function caddie_csv_sql_apply_internal() {
+    local sql="$1"
+    local mode="${2:-query}"
+    local preview
+    preview=$(caddie_csv_sql_preview_internal "$sql")
+
+    if [ -z "$preview" ]; then
+        caddie cli:warning "SQL statement is empty; nothing to run"
+        return 1
+    fi
+
+    printf -v CADDIE_CSV_SQL '%s' "$sql"
+    export CADDIE_CSV_SQL
+
+    caddie cli:check "SQL ready (${mode}) → $preview"
+
+    if [ "$mode" = "summary" ]; then
+        caddie_csv_query_summary
+    else
+        caddie_csv_query
+    fi
+    return $?
+}
+
+function caddie_csv_sql_help_internal() {
+    caddie cli:title "CSV SQL prompt commands"
+    caddie cli:indent "\\q        Exit the SQL prompt"
+    caddie cli:indent "\\g        Execute the current buffer (query)"
+    caddie cli:indent "\\summary  Execute the current buffer as a summary query"
+    caddie cli:indent "\\show     Display active CSV defaults"
+    caddie cli:indent "\\history  Show the last stored SQL statement"
+    caddie cli:indent "\\clear    Discard the in-flight SQL buffer"
+    caddie cli:indent "\\help     Show this help message"
+    caddie cli:blank
+    caddie cli:thought "Terminate SQL with ';' to run automatically."
+    return 0
+}
+
+function caddie_csv_sql() {
+    local version="${CADDIE_CSV_TOOLS_VERSION:-}"
+    local prompt_primary="caddie[csv sql]-${version}> "
+    local prompt_continuation="...> "
+    local buffer=""
+    local line=""
+    local read_flags="-r -e"
+    local previous_trap
+    if ! help read 2>/dev/null | grep -q -- '-e'; then
+        read_flags="-r"
+    fi
+
+    caddie cli:title "Interactive CSV SQL prompt"
+    caddie cli:indent "Enter SQL across multiple lines and finish with ';' or \\g."
+    caddie cli:indent "Type \\help for available commands."
+
+    previous_trap=$(trap -p INT)
+    trap 'buffer=""; printf "\n"; caddie cli:warning "Cancelled SQL buffer"' INT
+
+    while true; do
+        if [ -z "$buffer" ]; then
+            if ! read $read_flags -p "$prompt_primary" line; then
+                printf '\n'
+                break
+            fi
+        else
+            if ! read $read_flags -p "$prompt_continuation" line; then
+                printf '\n'
+                break
+            fi
+        fi
+
+        if [[ "$line" =~ ^\\ ]]; then
+            case "$line" in
+                \\q|\\quit)
+                    buffer=""
+                    break
+                    ;;
+                \\help|\\h)
+                    caddie_csv_sql_help_internal
+                    continue
+                    ;;
+                \\clear|\\reset)
+                    buffer=""
+                    caddie cli:thought "Cleared SQL buffer"
+                    continue
+                    ;;
+                \\show)
+                    caddie_csv_list
+                    continue
+                    ;;
+                \\history|\\last)
+                    if [ -n "${CADDIE_CSV_SQL:-}" ]; then
+                        local preview
+                        preview=$(caddie_csv_sql_preview_internal "$CADDIE_CSV_SQL")
+                        caddie cli:package "sql = $preview"
+                    else
+                        caddie cli:warning "SQL not set"
+                    fi
+                    continue
+                    ;;
+                \\g|\\go)
+                    if [ -n "$buffer" ]; then
+                        caddie_csv_sql_apply_internal "$buffer" query
+                        buffer=""
+                    else
+                        if [ -z "${CADDIE_CSV_SQL:-}" ]; then
+                            caddie cli:warning "No SQL buffer or default query to run"
+                        else
+                            caddie_csv_sql_apply_internal "$CADDIE_CSV_SQL" query
+                        fi
+                    fi
+                    continue
+                    ;;
+                \\summary)
+                    if [ -n "$buffer" ]; then
+                        caddie_csv_sql_apply_internal "$buffer" summary
+                        buffer=""
+                    else
+                        if [ -z "${CADDIE_CSV_SQL:-}" ]; then
+                            caddie cli:warning "No SQL buffer or default query to summarize"
+                        else
+                            caddie_csv_sql_apply_internal "$CADDIE_CSV_SQL" summary
+                        fi
+                    fi
+                    continue
+                    ;;
+                *)
+                    caddie cli:warning "Unknown command: $line"
+                    caddie cli:thought "Type \\help for available commands"
+                    continue
+                    ;;
+            esac
+        fi
+
+        buffer+="${buffer:+$'\n'}$line"
+
+        if [[ "$buffer" =~ \;[[:space:]]*$ ]]; then
+            caddie_csv_sql_apply_internal "$buffer" query
+            buffer=""
+        fi
+    done
+
+    if [ -n "$previous_trap" ]; then
+        eval "$previous_trap"
+    else
+        trap - INT
+    fi
+
+    caddie cli:thought "Exited CSV SQL prompt"
+    return 0
+}
+
 function caddie_csv_set_circle()        { caddie_csv_set_alias_internal circle "caddie csv:set:circle <on|off>" "$@"; return $?; }
 function caddie_csv_get_circle()        { caddie_csv_show_alias_internal circle; return $?; }
 function caddie_csv_unset_circle()      { caddie_csv_unset_alias_internal circle; return $?; }
@@ -754,6 +916,7 @@ function caddie_csv_help() {
     caddie cli:indent "csv:init                 Bootstrap csvql virtual environment"
     caddie cli:indent "csv:query [file] ...     Run csvql with optional SQL/flags"
     caddie cli:indent "csv:query:summary        Run csvql and show summarized output"
+    caddie cli:indent "csv:sql                  Open an interactive multi-line SQL prompt"
     caddie cli:indent "csv:plot [file] ...      Render plot using active plot type"
     caddie cli:indent "csv:scatter [file] ...   Render scatter plot regardless of defaults"
     caddie cli:indent "csv:line [file] ...      Render line plot when plot type is line"
@@ -942,7 +1105,7 @@ function caddie_csv_tail() {
 }
 
 function caddie_csv_commands() {
-    printf '%s' "csv:version csv:init csv:query csv:query:summary csv:plot csv:scatter csv:line csv:bar csv:head csv:tail csv:list csv:unset:all \
+    printf '%s' "csv:version csv:init csv:query csv:query:summary csv:sql csv:plot csv:scatter csv:line csv:bar csv:head csv:tail csv:list csv:unset:all \
 csv:set:file csv:get:file csv:unset:file csv:prompt \
 csv:set:x csv:get:x csv:unset:x \
 csv:set:y csv:get:y csv:unset:y \
@@ -1205,6 +1368,7 @@ export -f caddie_csv_session_delete_all
 export -f caddie_csv_init
 export -f caddie_csv_query
 export -f caddie_csv_query_summary
+export -f caddie_csv_sql
 export -f caddie_csv_plot
 export -f caddie_csv_scatter
 export -f caddie_csv_line
