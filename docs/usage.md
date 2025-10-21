@@ -575,6 +575,31 @@ caddie csv:set:sql "SELECT * FROM df WHERE handicap <= 15 AND distance > 10 ORDE
 
 When a default SQL query is configured, the interactive prompt shows a dedicated `[csv:sql …]` line between the banner and working-directory segments so you always know which query will run.
 
+##### `caddie csv:sql`
+
+Open a nested SQL prompt inside the `caddie csv` mode that accepts multi-line input (similar to `psql` or `mysql`).
+Terminate statements with `;` or send them explicitly with `\g`. The prompt automatically persists the SQL in the
+current session and runs `csv:query`; use `\summary` to jump straight to `csv:query:summary`.
+
+**Interactive flow:**
+```text
+caddie> csv
+caddie[csv]-3.7> sql
+caddie[csv sql]-3.7> SELECT distance,
+...>        AVG(success) AS make_rate
+...>   FROM df
+...>   GROUP BY distance;
+```
+
+**Prompt commands:**
+- `\q` / `\quit` – leave the SQL prompt
+- `\g` / `\go` – execute the current buffer (uses the existing buffer or the last stored SQL)
+- `\summary` – execute the buffer with `csv:query:summary`
+- `\show` – display current CSV defaults (`csv:list`)
+- `\history` – show the last stored SQL snippet
+- `\clear` – discard the in-flight buffer
+- `\help` – show the full command reference
+
 ##### `caddie csv:set:pager <command>`
 
 Control which pager is used for full query output. When unset, caddie prefers `less` (if installed), then `more`, and finally falls back to `cat`.
