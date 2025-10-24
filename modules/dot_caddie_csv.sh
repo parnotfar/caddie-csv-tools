@@ -629,39 +629,46 @@ function caddie_csv_sql_add_to_history() {
         if [ ${#CADDIE_CSV_SQL_HISTORY[@]} -gt 100 ]; then
             CADDIE_CSV_SQL_HISTORY=("${CADDIE_CSV_SQL_HISTORY[@]:1}")
         fi
-        # Reset index to end
-        CADDIE_CSV_SQL_HISTORY_INDEX=${#CADDIE_CSV_SQL_HISTORY[@]}
+        # Reset index to end (last valid index)
+        CADDIE_CSV_SQL_HISTORY_INDEX=$((${#CADDIE_CSV_SQL_HISTORY[@]} - 1))
     fi
 }
 
+# Global variable to hold the current history line
+CADDIE_CSV_SQL_CURRENT_HISTORY_LINE=""
+
 function caddie_csv_sql_get_history_up() {
     if [ ${#CADDIE_CSV_SQL_HISTORY[@]} -eq 0 ]; then
+        CADDIE_CSV_SQL_CURRENT_HISTORY_LINE=""
         return 1
     fi
     
     if [ $CADDIE_CSV_SQL_HISTORY_INDEX -gt 0 ]; then
         CADDIE_CSV_SQL_HISTORY_INDEX=$((CADDIE_CSV_SQL_HISTORY_INDEX - 1))
-        printf '%s' "${CADDIE_CSV_SQL_HISTORY[$CADDIE_CSV_SQL_HISTORY_INDEX]}"
+        CADDIE_CSV_SQL_CURRENT_HISTORY_LINE="${CADDIE_CSV_SQL_HISTORY[$CADDIE_CSV_SQL_HISTORY_INDEX]}"
         return 0
     fi
+    CADDIE_CSV_SQL_CURRENT_HISTORY_LINE=""
     return 1
 }
 
 function caddie_csv_sql_get_history_down() {
     if [ ${#CADDIE_CSV_SQL_HISTORY[@]} -eq 0 ]; then
+        CADDIE_CSV_SQL_CURRENT_HISTORY_LINE=""
         return 1
     fi
     
     if [ $CADDIE_CSV_SQL_HISTORY_INDEX -lt $((${#CADDIE_CSV_SQL_HISTORY[@]} - 1)) ]; then
         CADDIE_CSV_SQL_HISTORY_INDEX=$((CADDIE_CSV_SQL_HISTORY_INDEX + 1))
-        printf '%s' "${CADDIE_CSV_SQL_HISTORY[$CADDIE_CSV_SQL_HISTORY_INDEX]}"
+        CADDIE_CSV_SQL_CURRENT_HISTORY_LINE="${CADDIE_CSV_SQL_HISTORY[$CADDIE_CSV_SQL_HISTORY_INDEX]}"
         return 0
     fi
+    CADDIE_CSV_SQL_CURRENT_HISTORY_LINE=""
     return 1
 }
 
 function caddie_csv_sql_reset_history_index() {
-    CADDIE_CSV_SQL_HISTORY_INDEX=${#CADDIE_CSV_SQL_HISTORY[@]}
+    CADDIE_CSV_SQL_HISTORY_INDEX=$((${#CADDIE_CSV_SQL_HISTORY[@]} - 1))
 }
 
 function caddie_csv_sql() {
@@ -793,9 +800,8 @@ function caddie_csv_sql() {
                     continue
                     ;;
                 \\up)
-                    local history_line
-                    if history_line=$(caddie_csv_sql_get_history_up); then
-                        buffer="$history_line"
+                    if caddie_csv_sql_get_history_up; then
+                        buffer="$CADDIE_CSV_SQL_CURRENT_HISTORY_LINE"
                         local preview
                         preview=$(caddie_csv_sql_preview_internal "$buffer")
                         caddie cli:check "Loaded from history: $preview"
@@ -805,9 +811,8 @@ function caddie_csv_sql() {
                     continue
                     ;;
                 \\down)
-                    local history_line
-                    if history_line=$(caddie_csv_sql_get_history_down); then
-                        buffer="$history_line"
+                    if caddie_csv_sql_get_history_down; then
+                        buffer="$CADDIE_CSV_SQL_CURRENT_HISTORY_LINE"
                         local preview
                         preview=$(caddie_csv_sql_preview_internal "$buffer")
                         caddie cli:check "Loaded from history: $preview"
