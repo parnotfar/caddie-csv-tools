@@ -358,15 +358,15 @@ def print_dataframe(df, mode: str) -> None:
     import pandas as pd
 
     row_count = len(df)
-    if row_count == 0:
-        print("(no rows)")
-        return
-
     mode = mode.lower()
     if mode != "full":
         mode = "summary"
 
     try:
+        if row_count == 0:
+            print("(no rows)")
+            return
+
         if mode == "summary":
             preview = 10
             with pd.option_context("display.max_rows", None, "display.max_columns", None, "display.width", 0):
