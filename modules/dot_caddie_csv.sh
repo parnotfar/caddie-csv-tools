@@ -574,8 +574,9 @@ function caddie_csv_sql_help_internal() {
     caddie cli:indent "\\g        Execute the current buffer (query)"
     caddie cli:indent "\\summary  Execute the current buffer as a summary query"
     caddie cli:indent "\\show     Display active CSV defaults"
-    caddie cli:indent "\\history  Show the last stored SQL statement"
+    caddie cli:indent "\\last     Show the last stored SQL statement"
     caddie cli:indent "\\hist     Show SQL command history"
+    caddie cli:indent "\\history  Load specific command from history (e.g., \\history 3)"
     caddie cli:indent "\\up       Go to previous command in history"
     caddie cli:indent "\\down     Go to next command in history"
     caddie cli:indent "\\clear    Discard the in-flight SQL buffer"
@@ -597,6 +598,7 @@ function caddie_csv_sql_paste_mode() {
     local paste_buffer=""
     local line=""
     
+    # Read until EOF or END command
     while IFS= read -r line; do
         if [ "$line" = "END" ]; then
             break
@@ -677,7 +679,7 @@ function caddie_csv_sql() {
     caddie cli:title "Interactive CSV SQL prompt"
     caddie cli:indent "Enter SQL across multiple lines and finish with ';' or \\g."
     caddie cli:indent "Type \\help for available commands."
-    caddie cli:indent "Multiline paste works! Use \\up/\\down for history."
+    caddie cli:indent "For multiline paste: use \\paste command (cleaner) or paste directly."
 
     # Initialize history index
     caddie_csv_sql_reset_history_index
@@ -749,13 +751,34 @@ function caddie_csv_sql() {
                     caddie_csv_list
                     continue
                     ;;
-                \\history|\\last)
+                \\last)
                     if [ -n "${CADDIE_CSV_SQL:-}" ]; then
+                        buffer="${CADDIE_CSV_SQL}"
                         local preview
-                        preview=$(caddie_csv_sql_preview_internal "$CADDIE_CSV_SQL")
-                        caddie cli:package "sql = $preview"
+                        preview=$(caddie_csv_sql_preview_internal "$buffer")
+                        caddie cli:check "Loaded last SQL: $preview"
                     else
-                        caddie cli:warning "SQL not set"
+                        caddie cli:warning "No SQL statement available"
+                    fi
+                    continue
+                    ;;
+                \\history)
+                    # Check if there's a number argument
+                    if [[ "$line" =~ ^\\history[[:space:]]+([0-9]+)$ ]]; then
+                        local hist_num="${BASH_REMATCH[1]}"
+                        local hist_index=$((hist_num - 1))
+                        
+                        if [ $hist_index -ge 0 ] && [ $hist_index -lt ${#CADDIE_CSV_SQL_HISTORY[@]} ]; then
+                            buffer="${CADDIE_CSV_SQL_HISTORY[$hist_index]}"
+                            local preview
+                            preview=$(caddie_csv_sql_preview_internal "$buffer")
+                            caddie cli:check "Loaded history #$hist_num: $preview"
+                        else
+                            caddie cli:warning "History index $hist_num not found (available: 1-${#CADDIE_CSV_SQL_HISTORY[@]})"
+                        fi
+                    else
+                        caddie cli:warning "Usage: \\history <number> (e.g., \\history 3)"
+                        caddie cli:thought "Use \\hist to see available history numbers"
                     fi
                     continue
                     ;;
