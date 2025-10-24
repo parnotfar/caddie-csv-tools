@@ -32,8 +32,7 @@ make install
 caddie reload
 ```
 
-The `install` target copies the appropriate module file into the caddie module directory structure and places the python
-application in the appropriate bin directory.
+The `install` target copies the modular structure into the caddie module directory. The main entry point (`dot_caddie_csv.sh`) now sources all the modular components automatically.
 
 To remove the module:
 
@@ -41,6 +40,52 @@ To remove the module:
 make uninstall
 caddie reload
 ```
+
+## Project Structure
+
+The module is organized into logical components:
+
+```
+src/
+├── caddie_csv_core.sh      # Core initialization, globals, and environment management
+├── caddie_csv_session.sh   # Session management (save, restore, delete, list)
+├── caddie_csv_settings.sh  # Settings management (set/get/unset commands)
+├── caddie_csv_sql.sh       # SQL prompt, history, editing, and related functionality
+├── caddie_csv_query.sh     # Query execution, plotting, and preview operations
+├── caddie_csv_prompt.sh    # Natural language prompt processing
+└── caddie_csv_main.sh      # Main entry point and command registration
+
+modules/
+└── dot_caddie_csv.sh       # Main entry point (sources all modules)
+
+bin/
+└── csvql.py                # Python script for SQL execution and plotting
+```
+
+**Installation Structure:**
+```
+~/.caddie_modules/
+├── .caddie_csv             # Main entry point
+├── .caddie_csv_version     # Version information
+├── caddie-csv-src/         # Module source files (properly namespaced)
+│   ├── caddie_csv_core.sh
+│   ├── caddie_csv_session.sh
+│   ├── caddie_csv_settings.sh
+│   ├── caddie_csv_sql.sh
+│   ├── caddie_csv_query.sh
+│   ├── caddie_csv_prompt.sh
+│   └── caddie_csv_main.sh
+└── bin/
+    └── csvql.py
+```
+
+### Modular Architecture Benefits
+
+- **Maintainability**: Each module has a single responsibility
+- **Readability**: Easier to understand and navigate the codebase
+- **Testability**: Individual modules can be tested in isolation
+- **Extensibility**: New features can be added to specific modules
+- **Debugging**: Issues can be traced to specific functional areas
 
 Tab completion and the `[csv:…]` prompt indicator are registered automatically when the module is sourced.
 
