@@ -5,16 +5,20 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 
 ## Version
 
-1.4
+1.5
 
 ## Features
 
 - DuckDB-powered SQL querying with optional data visualisation
 - Interactive, multi-line SQL prompt for composing queries
+- **NEW in v1.5**: Enhanced SQL prompt with command history navigation
+- **NEW in v1.5**: Clean multiline paste support via `\paste` command
+- **NEW in v1.5**: SQL-specific command history (separate from shell history)
 - Session defaults via `csv:set:*` helpers (file, axes, filters, plot metadata)
 - Scatter, line, and bar chart support with matplotlib overlays, custom axis scales/ranges, and categorical segmentation
 - Head/tail previews, configurable pagers, and saved output targets
-- Automatic integration with caddie’s prompt and completion registries
+- **NEW in v1.5**: Graceful handling of pager exit (no more broken pipe errors)
+- Automatic integration with caddie's prompt and completion registries
 
 ## Installation
 
@@ -48,6 +52,18 @@ caddie core:lint
 ```
 
 See [`docs/usage.md`](docs/usage.md) for comprehensive documentation and command examples.
+
+## Changelog
+
+### v1.5 (Current)
+- **Enhanced SQL Prompt**: Added command history navigation with `\up`/`\down` and `\history N` commands
+- **Clean Multiline Paste**: Added `\paste` command for seamless multiline query input
+- **SQL-Specific History**: Commands are now stored in dedicated history separate from shell history
+- **Improved Pager Experience**: Fixed broken pipe errors when exiting pagers (pressing 'q' in less)
+- **Better User Experience**: Clean, professional interface with no ugly error messages
+
+### v1.4
+- Initial release with basic SQL querying and plotting capabilities
 
 ## Versioning
 
