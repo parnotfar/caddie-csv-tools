@@ -358,28 +358,33 @@ def print_dataframe(df, mode: str) -> None:
     import pandas as pd
 
     row_count = len(df)
-    if row_count == 0:
-        print("(no rows)")
-        return
-
     mode = mode.lower()
     if mode != "full":
         mode = "summary"
 
-    if mode == "summary":
-        preview = 10
-        with pd.option_context("display.max_rows", None, "display.max_columns", None, "display.width", 0):
-            if row_count <= preview * 2:
+    try:
+        if row_count == 0:
+            print("(no rows)")
+            return
+
+        if mode == "summary":
+            preview = 10
+            with pd.option_context("display.max_rows", None, "display.max_columns", None, "display.width", 0):
+                if row_count <= preview * 2:
+                    print(df.to_string(index=False))
+                else:
+                    print(f"Showing first {preview} of {row_count} rows:")
+                    print(df.head(preview).to_string(index=False))
+                    print("…")
+                    print(f"Showing last {preview} of {row_count} rows:")
+                    print(df.tail(preview).to_string(index=False))
+        else:
+            with pd.option_context("display.max_rows", None, "display.max_columns", None, "display.width", 0):
                 print(df.to_string(index=False))
-            else:
-                print(f"Showing first {preview} of {row_count} rows:")
-                print(df.head(preview).to_string(index=False))
-                print("…")
-                print(f"Showing last {preview} of {row_count} rows:")
-                print(df.tail(preview).to_string(index=False))
-    else:
-        with pd.option_context("display.max_rows", None, "display.max_columns", None, "display.width", 0):
-            print(df.to_string(index=False))
+    except BrokenPipeError:
+        # Handle broken pipe gracefully when pager exits (e.g., pressing 'q' in less)
+        sys.stderr.close()
+        sys.exit(0)
 
 
 def run_query(args: argparse.Namespace) -> None:

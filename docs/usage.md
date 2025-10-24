@@ -596,14 +596,35 @@ caddie[csv sql]-1.4> SELECT distance,
 - `\g` / `\go` – execute the current buffer (uses the existing buffer or the last stored SQL)
 - `\summary` – execute the buffer with `csv:query:summary`
 - `\show` – display current CSV defaults (`csv:list`)
-- `\history` – show the last stored SQL snippet
+- `\last` – load the last executed SQL statement into the buffer
+- `\history` – show command history list or load specific command (`\history N`)
+- `\hist` – alias for `\history`
+- `\up` / `\down` – navigate through command history sequentially
+- `\paste` – enter clean multiline paste mode for complex queries
 - `\clear` – discard the in-flight buffer
 - `\help` – show the full command reference
+
+**NEW in v1.5 - Enhanced History Navigation:**
+- SQL commands are stored in a dedicated history (separate from shell history)
+- Use `\up`/`\down` to navigate through previous commands sequentially
+- Use `\history N` to jump directly to a specific command by number
+- Use `\paste` for clean multiline paste without ugly prompts
+- All executed queries are automatically saved to history
 
 ##### `caddie csv:set:pager <command>`
 
 Control which pager is used for full query output. When unset, caddie prefers `less` (if installed), then `more`, and finally falls back to `cat`.
 When `less` is auto-detected and `$LESS` is unset, the module runs it with `-R -F -X` so the results stay on the current screen and `less` exits automatically when the content fits one page.
+
+**NEW in v1.5 - Improved Pager Experience:**
+- Graceful handling when exiting pagers (no more "broken pipe" errors)
+- Clean exit when pressing 'q' in `less` or other pagers
+- Professional user experience with no ugly error messages
+
+**NEW in v1.6 - Complete Error Protection:**
+- Fixed remaining broken pipe error in empty result sets
+- All print statements now protected from pager exit scenarios
+- Robust error handling for all query output types
 
 **Examples:**
 ```bash
