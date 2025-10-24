@@ -581,13 +581,62 @@ function caddie_csv_sql_help_internal() {
     caddie cli:indent "\\down     Go to next command in history"
     caddie cli:indent "\\clear    Discard the in-flight SQL buffer"
     caddie cli:indent "\\paste    Enter multiline paste mode"
+    caddie cli:indent "\\edit     Open current buffer in editor (\\e for short)"
     caddie cli:indent "\\help     Show this help message"
     caddie cli:blank
     caddie cli:thought "Terminate SQL with ';' to run automatically."
     caddie cli:thought "Use \\paste for multiline queries, or type \\g after pasting."
+    caddie cli:thought "Use \\edit to open current buffer in your editor (\$EDITOR)."
     caddie cli:thought "Use \\up/\\down for command history navigation."
     return 0
 }
+
+function caddie_csv_sql_edit_mode() {
+    local current_buffer="$1"
+    
+    # Check if EDITOR is set
+    if [ -z "${EDITOR:-}" ]; then
+        caddie cli:warning "No editor configured. Set \$EDITOR environment variable."
+        caddie cli:thought "Example: export EDITOR=vim"
+        return 1
+    fi
+    
+    # Create a temporary file for editing
+    local temp_file
+    temp_file=$(mktemp /tmp/caddie_sql_edit.XXXXXX.sql) || {
+        caddie cli:warning "Failed to create temporary file"
+        return 1
+    }
+    
+    # Write current buffer to temp file
+    printf '%s' "$current_buffer" > "$temp_file"
+    
+    caddie cli:title "Opening SQL in editor" >&2
+    caddie cli:indent "Editor: $EDITOR" >&2
+    caddie cli:indent "File: $temp_file" >&2
+    caddie cli:blank >&2
+    
+    # Open editor
+    if "$EDITOR" "$temp_file"; then
+        # Editor exited successfully, read the content
+        if [ -f "$temp_file" ]; then
+            CADDIE_CSV_SQL_EDITED_CONTENT=$(cat "$temp_file")
+            rm -f "$temp_file"
+            return 0
+        else
+            caddie cli:warning "Temporary file was deleted during editing"
+            rm -f "$temp_file"
+            return 1
+        fi
+    else
+        caddie cli:warning "Editor exited with error"
+        rm -f "$temp_file"
+        return 1
+    fi
+}
+
+# Global variable to hold edited content
+CADDIE_CSV_SQL_EDITED_CONTENT=""
 
 function caddie_csv_sql_paste_mode() {
     caddie cli:title "Multiline Paste Mode" >&2
@@ -745,12 +794,31 @@ function caddie_csv_sql() {
                         local preview
                         preview=$(caddie_csv_sql_preview_internal "$buffer")
                         caddie cli:check "Added to buffer: $preview"
+
+                        # Check if it ends with semicolon and execute automatically
+                        if [[ "$buffer" =~ \;[[:space:]]*$ ]]; then
+                            caddie_csv_sql_apply_internal "$buffer" query
+                            buffer=""
+                        fi
+                    fi
+                    continue
+                    ;;
+                \\edit|\\e)
+                    caddie_csv_sql_edit_mode "$buffer"
+                    if [ $? -eq 0 ]; then
+                        # Editor was successful, update buffer with edited content
+                        buffer="$CADDIE_CSV_SQL_EDITED_CONTENT"
+                        local preview
+                        preview=$(caddie_csv_sql_preview_internal "$buffer")
+                        caddie cli:check "Buffer updated from editor: $preview"
                         
                         # Check if it ends with semicolon and execute automatically
                         if [[ "$buffer" =~ \;[[:space:]]*$ ]]; then
                             caddie_csv_sql_apply_internal "$buffer" query
                             buffer=""
                         fi
+                    else
+                        caddie cli:warning "Editor was cancelled or failed"
                     fi
                     continue
                     ;;

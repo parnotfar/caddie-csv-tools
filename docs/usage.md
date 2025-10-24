@@ -601,6 +601,7 @@ caddie[csv sql]-1.4> SELECT distance,
 - `\hist` – alias for `\history`
 - `\up` / `\down` – navigate through command history sequentially
 - `\paste` – enter clean multiline paste mode for complex queries
+- `\edit` / `\e` – open current buffer in external editor for complex SQL composition
 - `\clear` – discard the in-flight buffer
 - `\help` – show the full command reference
 
@@ -610,6 +611,13 @@ caddie[csv sql]-1.4> SELECT distance,
 - Use `\history N` to jump directly to a specific command by number
 - Use `\paste` for clean multiline paste without ugly prompts
 - All executed queries are automatically saved to history
+
+**NEW in v2.0 - External Editor Integration:**
+- Use `\edit` or `\e` to open current SQL buffer in your configured editor
+- Requires `$EDITOR` environment variable to be set (e.g., `export EDITOR=vim`)
+- Full-featured SQL editing with syntax highlighting and advanced features
+- Automatic buffer update and execution after saving and exiting editor
+- Seamless integration with your preferred development workflow
 
 ##### `caddie csv:set:pager <command>`
 
