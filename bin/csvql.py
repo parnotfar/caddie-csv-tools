@@ -104,13 +104,19 @@ def apply_success_filter(query: str, condition: str | None) -> str:
     match = keyword_pattern.search(query_body)
     if match:
         split_at = match.start()
-    head = query_body[:split_at].rstrip()
+    head = query_body[:split_at]
     tail = query_body[split_at:]
-    if re.search(r"\bwhere\b", head, re.IGNORECASE):
-        head = f"{head} AND ({condition})"
+    head_stripped = head.rstrip()
+    trailing_ws = head[len(head_stripped):]
+    head_searchable = re.sub(r"--.*?$", "", head_stripped, flags=re.MULTILINE)
+    head_searchable = re.sub(r"/\*.*?\*/", "", head_searchable, flags=re.DOTALL)
+    if re.search(r"\bwhere\b", head_searchable, re.IGNORECASE):
+        head_stripped = f"{head_stripped} AND ({condition})"
     else:
-        head = f"{head} WHERE {condition}"
-    return f"{head}{tail}".strip()
+        head_stripped = f"{head_stripped} WHERE {condition}"
+    if tail and not tail[0].isspace():
+        tail = f" {tail}"
+    return f"{head_stripped}{trailing_ws}{tail}".strip()
 
 
 def parse_ring_radii(raw: str | None) -> list[float]:
@@ -180,8 +186,18 @@ def resolve_segment_colors(raw: str | None, count: int) -> list[str]:
         return colors[:count]
     if count <= len(DEFAULT_SEGMENT_PALETTE):
         return DEFAULT_SEGMENT_PALETTE[:count]
-    # Fallback by repeating the last palette color if more colors requested than defaults
-    return DEFAULT_SEGMENT_PALETTE + [DEFAULT_SEGMENT_PALETTE[-1]] * (count - len(DEFAULT_SEGMENT_PALETTE))
+    try:
+        import matplotlib
+
+        if count <= 10:
+            cmap = matplotlib.cm.get_cmap('tab10', count)
+        elif count <= 20:
+            cmap = matplotlib.cm.get_cmap('tab20', count)
+        else:
+            cmap = matplotlib.cm.get_cmap('hsv', count)
+        return [matplotlib.colors.to_hex(cmap(index)) for index in range(count)]
+    except Exception:  # pragma: no cover - defensive fallback
+        return DEFAULT_SEGMENT_PALETTE + [DEFAULT_SEGMENT_PALETTE[-1]] * (count - len(DEFAULT_SEGMENT_PALETTE))
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -219,8 +235,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--y-scale", dest="y_scale", default=os.environ.get("CADDIE_CSV_Y_SCALE"), help="Set matplotlib scale for the y-axis (e.g. linear, log)")
     parser.add_argument("--x-range", dest="x_range", default=os.environ.get("CADDIE_CSV_X_RANGE"), help="Override the displayed x-axis range; supports bracket, parenthesis, or comma-delimited forms")
     parser.add_argument("--y-range", dest="y_range", default=os.environ.get("CADDIE_CSV_Y_RANGE"), help="Override the displayed y-axis range; same format as --x-range")
-    parser.add_argument("--segment-column", dest="segment_column", default=os.environ.get("CADDIE_CSV_SEGMENT_COLUMN"), help="Binary column used to color scatter plots")
-    parser.add_argument("--segment-colors", dest="segment_colors", default=os.environ.get("CADDIE_CSV_SEGMENT_COLORS"), help="Comma-separated colors matched to the binary segment values")
+    parser.add_argument("--segment-column", dest="segment_column", default=os.environ.get("CADDIE_CSV_SEGMENT_COLUMN"), help="Categorical column used to color scatter plots")
+    parser.add_argument("--segment-colors", dest="segment_colors", default=os.environ.get("CADDIE_CSV_SEGMENT_COLORS"), help="Comma-separated colors matched to the segment values (falls back to tab10 palette)")
     return parser.parse_args(argv)
 
 
@@ -262,8 +278,6 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
             segment_series = plot_df[segment_column]
             non_null_mask = segment_series.notna()
             unique_values = list(pd.unique(segment_series[non_null_mask]))
-            if len(unique_values) > 2:
-                raise SystemExit(f"--segment-column expects a binary column; found {len(unique_values)} distinct values in '{segment_column}'")
             if unique_values:
                 colors = resolve_segment_colors(args.segment_colors, len(unique_values))
                 for value, color in zip(unique_values, colors):
