@@ -5,7 +5,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 
 ## Version
 
-1.6
+2.0
 
 ## Features
 
@@ -19,6 +19,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 - Head/tail previews, configurable pagers, and saved output targets
 - **NEW in v1.5**: Graceful handling of pager exit (no more broken pipe errors)
 - **NEW in v1.6**: Complete broken pipe protection including empty result sets
+- **NEW in v2.0**: External editor integration for complex SQL composition
 - Automatic integration with caddie's prompt and completion registries
 
 ## Installation
@@ -56,7 +57,13 @@ See [`docs/usage.md`](docs/usage.md) for comprehensive documentation and command
 
 ## Changelog
 
-### v1.6 (Current)
+### v2.0 (Current) - Major Feature Release
+- **External Editor Integration**: Added `\edit` command to open SQL buffer in user's editor
+- **Enhanced SQL Composition**: Use `\e` (short alias) to edit complex queries in vim/emacs/etc.
+- **Seamless Workflow**: Editor integration with automatic buffer updates and execution
+- **Professional Development Experience**: Full-featured SQL editing with syntax highlighting
+
+### v1.6
 - **Complete Broken Pipe Protection**: Fixed remaining broken pipe error in empty result sets
 - **Robust Error Handling**: All print statements now protected from pager exit scenarios
 
