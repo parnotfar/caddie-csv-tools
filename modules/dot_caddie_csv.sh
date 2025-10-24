@@ -590,10 +590,10 @@ function caddie_csv_sql_help_internal() {
 }
 
 function caddie_csv_sql_paste_mode() {
-    caddie cli:title "Multiline Paste Mode"
-    caddie cli:indent "Paste your multiline SQL query below."
-    caddie cli:indent "Press Ctrl+D (EOF) when finished, or type 'END' on a new line."
-    caddie cli:blank
+    caddie cli:title "Multiline Paste Mode" >&2
+    caddie cli:indent "Paste your multiline SQL query below." >&2
+    caddie cli:indent "Press Ctrl+D (EOF) when finished, or type 'END' on a new line." >&2
+    caddie cli:blank >&2
     
     local paste_buffer=""
     local line=""
@@ -610,7 +610,7 @@ function caddie_csv_sql_paste_mode() {
         # Return the pasted content to be added to the main buffer
         printf '%s' "$paste_buffer"
     else
-        caddie cli:warning "No content pasted"
+        caddie cli:warning "No content pasted" >&2
     fi
     
     return 0
@@ -679,7 +679,7 @@ function caddie_csv_sql() {
     caddie cli:title "Interactive CSV SQL prompt"
     caddie cli:indent "Enter SQL across multiple lines and finish with ';' or \\g."
     caddie cli:indent "Type \\help for available commands."
-    caddie cli:indent "For multiline paste: use \\paste command (cleaner) or paste directly."
+    caddie cli:indent "For clean multiline paste: use \\paste command."
 
     # Initialize history index
     caddie_csv_sql_reset_history_index
@@ -762,7 +762,7 @@ function caddie_csv_sql() {
                     fi
                     continue
                     ;;
-                \\history)
+                \\history*)
                     # Check if there's a number argument
                     if [[ "$line" =~ ^\\history[[:space:]]+([0-9]+)$ ]]; then
                         local hist_num="${BASH_REMATCH[1]}"
