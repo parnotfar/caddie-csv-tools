@@ -621,6 +621,11 @@ When `less` is auto-detected and `$LESS` is unset, the module runs it with `-R -
 - Clean exit when pressing 'q' in `less` or other pagers
 - Professional user experience with no ugly error messages
 
+**NEW in v1.6 - Complete Error Protection:**
+- Fixed remaining broken pipe error in empty result sets
+- All print statements now protected from pager exit scenarios
+- Robust error handling for all query output types
+
 **Examples:**
 ```bash
 # Force use of less

@@ -5,7 +5,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 
 ## Version
 
-1.5
+1.6
 
 ## Features
 
@@ -18,6 +18,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 - Scatter, line, and bar chart support with matplotlib overlays, custom axis scales/ranges, and categorical segmentation
 - Head/tail previews, configurable pagers, and saved output targets
 - **NEW in v1.5**: Graceful handling of pager exit (no more broken pipe errors)
+- **NEW in v1.6**: Complete broken pipe protection including empty result sets
 - Automatic integration with caddie's prompt and completion registries
 
 ## Installation
@@ -55,7 +56,11 @@ See [`docs/usage.md`](docs/usage.md) for comprehensive documentation and command
 
 ## Changelog
 
-### v1.5 (Current)
+### v1.6 (Current)
+- **Complete Broken Pipe Protection**: Fixed remaining broken pipe error in empty result sets
+- **Robust Error Handling**: All print statements now protected from pager exit scenarios
+
+### v1.5
 - **Enhanced SQL Prompt**: Added command history navigation with `\up`/`\down` and `\history N` commands
 - **Clean Multiline Paste**: Added `\paste` command for seamless multiline query input
 - **SQL-Specific History**: Commands are now stored in dedicated history separate from shell history
