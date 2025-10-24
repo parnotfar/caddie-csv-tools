@@ -575,8 +575,8 @@ function caddie_csv_sql_help_internal() {
     caddie cli:indent "\\summary  Execute the current buffer as a summary query"
     caddie cli:indent "\\show     Display active CSV defaults"
     caddie cli:indent "\\last     Show the last stored SQL statement"
-    caddie cli:indent "\\hist     Show SQL command history"
-    caddie cli:indent "\\history  Load specific command from history (e.g., \\history 3)"
+    caddie cli:indent "\\history  Show command history (\\history) or load specific command (\\history N)"
+    caddie cli:indent "\\hist     Alias for \\history"
     caddie cli:indent "\\up       Go to previous command in history"
     caddie cli:indent "\\down     Go to next command in history"
     caddie cli:indent "\\clear    Discard the in-flight SQL buffer"
@@ -762,10 +762,10 @@ function caddie_csv_sql() {
                     fi
                     continue
                     ;;
-                \\history*)
+                \\history*|\\hist)
                     # Check if there's a number argument
-                    if [[ "$line" =~ ^\\history[[:space:]]+([0-9]+)$ ]]; then
-                        local hist_num="${BASH_REMATCH[1]}"
+                    if [[ "$line" =~ ^\\(history|hist)[[:space:]]+([0-9]+)$ ]]; then
+                        local hist_num="${BASH_REMATCH[2]}"
                         local hist_index=$((hist_num - 1))
                         
                         if [ $hist_index -ge 0 ] && [ $hist_index -lt ${#CADDIE_CSV_SQL_HISTORY[@]} ]; then
@@ -777,22 +777,18 @@ function caddie_csv_sql() {
                             caddie cli:warning "History index $hist_num not found (available: 1-${#CADDIE_CSV_SQL_HISTORY[@]})"
                         fi
                     else
-                        caddie cli:warning "Usage: \\history <number> (e.g., \\history 3)"
-                        caddie cli:thought "Use \\hist to see available history numbers"
-                    fi
-                    continue
-                    ;;
-                \\hist)
-                    if [ ${#CADDIE_CSV_SQL_HISTORY[@]} -eq 0 ]; then
-                        caddie cli:warning "No SQL history available"
-                    else
-                        caddie cli:title "SQL Command History"
-                        local i
-                        for i in "${!CADDIE_CSV_SQL_HISTORY[@]}"; do
-                            local preview
-                            preview=$(caddie_csv_sql_preview_internal "${CADDIE_CSV_SQL_HISTORY[$i]}")
-                            caddie cli:indent "$((i+1)). $preview"
-                        done
+                        # No number argument - show history list
+                        if [ ${#CADDIE_CSV_SQL_HISTORY[@]} -eq 0 ]; then
+                            caddie cli:warning "No SQL history available"
+                        else
+                            caddie cli:title "SQL Command History"
+                            local i
+                            for i in "${!CADDIE_CSV_SQL_HISTORY[@]}"; do
+                                local preview
+                                preview=$(caddie_csv_sql_preview_internal "${CADDIE_CSV_SQL_HISTORY[$i]}")
+                                caddie cli:indent "$((i+1)). $preview"
+                            done
+                        fi
                     fi
                     continue
                     ;;
