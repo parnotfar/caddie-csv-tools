@@ -104,8 +104,8 @@ You can combine the supported syntax in any order:
 | Axis scale              | `x_scale=<mode>` `y_scale=<mode>` | Applies matplotlib scaling (e.g., `linear`, `log`, `symlog`) |
 | Axis range              | `x_range=<spec>` `y_range=<spec>` | Comma list with optional brackets/parentheses; blanks mean open bounds |
 | Filter → scatter_filter | `where <predicate>`            | Copied verbatim to `csv:set:scatter_filter`          |
-| Segment column          | `segment=<column>`             | Sets `csv:set:segment_column` for binary coloring    |
-| Segment colors          | `segment_colors <c1,c2>`       | Optional palette override mapped to segment values  |
+| Segment column          | `segment=<column>`             | Sets `csv:set:segment_column` for categorical coloring |
+| Segment colors          | `segment_colors <c1,c2,...>`    | Optional palette override mapped to segment values  |
 | Title                   | `title: <text>`                | Title set up to the next keyword (e.g., `save to`)   |
 | Save path               | `save to path.png`             | Passed to `csv:set:save`. (HTML is allowed for consistency; rendering remains matplotlib.) |
 | Define SQL              | `sql: <query>`                 | Passed to `csv:set:sql` (e.g., `sql: select * from df where success=false`) |
@@ -603,6 +603,7 @@ caddie[csv sql]-1.4> SELECT distance,
 ##### `caddie csv:set:pager <command>`
 
 Control which pager is used for full query output. When unset, caddie prefers `less` (if installed), then `more`, and finally falls back to `cat`.
+When `less` is auto-detected and `$LESS` is unset, the module runs it with `-R -F -X` so the results stay on the current screen and `less` exits automatically when the content fits one page.
 
 **Examples:**
 ```bash
@@ -744,10 +745,10 @@ caddie csv:set:scatter_filter "distance_to_hole < 50"
 
 ##### `caddie csv:set:segment_column <column>`
 
-Assign a binary column that will be used to color scatter plot points.
+Assign a categorical column that will be used to color scatter plot points.
 
 **Arguments:**
-- `column`: Column name in the result set that contains two distinct values (excluding NULL)
+- `column`: Column name in the result set that contains categorical values (NULL permitted)
 
 **Examples:**
 ```bash
@@ -763,12 +764,12 @@ caddie csv:set:segment_column made_putt
 ✓ Set segment column to success
 ```
 
-##### `caddie csv:set:segment_colors <color1,color2>`
+##### `caddie csv:set:segment_colors <color1,color2,...>`
 
 Override the default color palette for the segment column.
 
 **Arguments:**
-- `color1,color2`: Comma-separated matplotlib colors or hex codes (applied in the order values appear)
+- `color1,color2,...`: Comma-separated matplotlib colors or hex codes (provide at least as many colors as distinct segment values)
 
 **Examples:**
 ```bash
@@ -1070,8 +1071,8 @@ All CSV module settings map to environment variables with the `CADDIE_CSV_` pref
 | `y_scale` | `CADDIE_CSV_Y_SCALE` | Matplotlib scale for y-axis |
 | `x_range` | `CADDIE_CSV_X_RANGE` | Axis bounds and ticks override for x-axis |
 | `y_range` | `CADDIE_CSV_Y_RANGE` | Axis bounds and ticks override for y-axis |
-| `segment_column` | `CADDIE_CSV_SEGMENT_COLUMN` | Binary column used to color scatter plots |
-| `segment_colors` | `CADDIE_CSV_SEGMENT_COLORS` | Custom colors for binary segment groups |
+| `segment_column` | `CADDIE_CSV_SEGMENT_COLUMN` | Categorical column used to color scatter plots |
+| `segment_colors` | `CADDIE_CSV_SEGMENT_COLORS` | Custom colors for segment groups (comma-separated) |
 | `circle` | `CADDIE_CSV_CIRCLE` | Enable circle overlay |
 | `rings` | `CADDIE_CSV_RINGS` | Enable ring overlay |
 | `circle_x` | `CADDIE_CSV_CIRCLE_X` | Circle center X position |
@@ -1115,8 +1116,8 @@ caddie csv:set:y_range (-3,3)
 caddie csv:plot --title "Centered dispersion window"
 ```
 
-When a segment column is set, the tool automatically renders each binary value
-with a distinct color (teal/orange by default) and adds a legend. Missing values
+When a segment column is set, the tool automatically renders each distinct value
+with a distinct color (teal/orange/purple by default, expanding via Matplotlib palettes when more are needed) and adds a legend. Missing values
 are shown in grey so they remain easy to spot without overwhelming the chart.
 
 ### Line Plots
