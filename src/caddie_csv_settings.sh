@@ -95,6 +95,21 @@ function caddie_csv_set_y()             { caddie_csv_set_alias_internal y "caddi
 function caddie_csv_get_y()             { caddie_csv_show_alias_internal y; return $?; }
 function caddie_csv_unset_y()           { caddie_csv_unset_alias_internal y; return $?; }
 
+function caddie_csv_set_line_series() {
+    local usage="caddie csv:set:line_series <label=column[,label=column]...>"
+    if [ $# -eq 0 ]; then
+        caddie cli:red "Error: line series specification required"
+        caddie cli:usage "$usage"
+        caddie cli:thought "Example: caddie csv:set:line_series makes=made_putts,misses=missed_putts"
+        return 1
+    fi
+    local spec="$*"
+    caddie_csv_set_alias_internal line_series "$usage" "$spec"
+    return $?
+}
+function caddie_csv_get_line_series()  { caddie_csv_show_alias_internal line_series; return $?; }
+function caddie_csv_unset_line_series(){ caddie_csv_unset_alias_internal line_series; return $?; }
+
 # Separator operations
 function caddie_csv_set_sep()           { caddie_csv_set_alias_internal sep "caddie csv:set:sep <separator>" "$@"; return $?; }
 function caddie_csv_get_sep()           { caddie_csv_show_alias_internal sep; return $?; }

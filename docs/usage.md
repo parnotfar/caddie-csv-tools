@@ -100,7 +100,8 @@ You can combine the supported syntax in any order:
 | Execution path          | `query` \| `summary` \| `plot` | Determines whether to query or plot the data         |
 | CSV file                | `path/to/file.csv`             | First `*.csv` in the prompt is used                  |
 | Plot type               | `scatter` \| `line` \| `bar`   | Controls which `csv:*` plot command runs             |
-| Axes                    | `x=<col> y=<col>`              | Both required for plotting                           |
+| Axes                    | `x=<col> y=<col>`              | X is required; Y required unless line series configured for line plots |
+| Line series             | `line series label=col,...`    | Sets `csv:set:line_series` (line plots render one line per entry) |
 | Axis scale              | `x_scale=<mode>` `y_scale=<mode>` | Applies matplotlib scaling (e.g., `linear`, `log`, `symlog`) |
 | Axis range              | `x_range=<spec>` `y_range=<spec>` | Comma list with optional brackets/parentheses; blanks mean open bounds |
 | Filter → scatter_filter | `where <predicate>`            | Copied verbatim to `csv:set:scatter_filter`          |
@@ -173,7 +174,7 @@ caddie csv:session:save 30ft_misses
 
 ### Troubleshooting
 * “Plot type not set” → include scatter, line, or bar in your prompt, or run caddie csv:set:plot … first.
-* “Set csv axes before plotting” → include x=<col> y=<col> in your prompt, or set them via csv:set:x / csv:set:y.
+* “Set csv axes before plotting” → include x=<col> y=<col> in your prompt (or add a `line series …` clause for multi-line charts), or set them via csv:set:x / csv:set:y / csv:set:line_series.
 * No file found → ensure the prompt contains a *.csv path or set a default with csv:set:file.
 * Filters not applying → confirm your where predicate matches what your plotting path expects (scatter_filter is set verbatim).
 
@@ -284,18 +285,31 @@ caddie csv:plot data/approach_shots.csv charts/approach.png --limit 200
 
 **Requirements:**
 - Plot type must be one of `scatter`, `line`, or `bar` (validated by `csv:set:plot`)
-- X and Y axis columns must be defined (`caddie csv:set:x` and `caddie csv:set:y`)
+- X axis column must be defined (`caddie csv:set:x`)
+- Line plots require either a Y column (`caddie csv:set:y`) or configured series (`caddie csv:set:line_series`)
 - Data columns must exist in the file
 - Plotting dependencies must be installed (`caddie csv:init` has been performed)
 
 #### `caddie csv:line [file] [output.png] [-- flags]`
 
-Render a line chart when `caddie csv:set:plot line` is active.
+Render a line chart when `caddie csv:set:plot line` is active. Each line can pull from the default Y column or from the label=column pairs defined via `caddie csv:set:line_series`.
 
 **Examples:**
 ```bash
+# Single series using the default Y column
 caddie csv:set:plot line
-caddie csv:line data/progression.csv --title "Progress Over Time"
+caddie csv:set:x session_date
+caddie csv:set:y strokes_gained
+caddie csv:line data/progression.csv --title "Strokes Gained Over Time"
+
+# Multi-series plot configured once
+caddie csv:set:plot line
+caddie csv:set:x session_date
+caddie csv:set:line_series makes=made_putts,misses=missed_putts
+caddie csv:line data/progression.csv --title "Putting Progression"
+
+# Override series on demand
+caddie csv:line data/progression.csv --line-series "attempts=attempt_count,total=total_attempts"
 ```
 
 If the plot type is not currently set to `line`, the command explains how to update it.
@@ -524,6 +538,27 @@ caddie csv:set:y accuracy_score
 **Output:**
 ```
 ✓ Set y to success_rate
+```
+
+##### `caddie csv:set:line_series <label=column[,label=column]...>`
+
+Configure multiple series for line charts. Each label=column entry becomes a separate line; labels default to the column name when omitted.
+
+**Arguments:**
+- `label=column[,label=column...]`: Comma-separated list of series specifications
+
+**Examples:**
+```bash
+# Track makes vs misses
+caddie csv:set:line_series makes=made_putts,misses=missed_putts
+
+# Use column names as labels automatically
+caddie csv:set:line_series attempts,total_attempts
+```
+
+**Output:**
+```
+✓ Set line series to makes=made_putts,misses=missed_putts
 ```
 
 ##### `caddie csv:set:plot <type>`
@@ -1087,6 +1122,7 @@ All CSV module settings map to environment variables with the `CADDIE_CSV_` pref
 | `file` | `CADDIE_CSV_FILE` | Default CSV/TSV file path |
 | `x` | `CADDIE_CSV_X` | X-axis column for plots |
 | `y` | `CADDIE_CSV_Y` | Y-axis column for plots |
+| `line_series` | `CADDIE_CSV_LINE_SERIES` | Label=column definitions for multi-line line plots |
 | `sep` | `CADDIE_CSV_SEP` | Field separator |
 | `plot` | `CADDIE_CSV_PLOT` | Default plot type |
 | `title` | `CADDIE_CSV_TITLE` | Default plot title |
@@ -1151,14 +1187,18 @@ are shown in grey so they remain easy to spot without overwhelming the chart.
 
 ### Line Plots
 
-Line plots connect data points to show trends over a continuous axis.
+Line plots connect data points to show trends over a continuous axis. Set `line_series` to render multiple metrics at once.
 
 ```bash
-# Create line plot
+# Create line plot with a single series
 caddie csv:set:plot line
 caddie csv:set:x distance
 caddie csv:set:y avg_attempts
 caddie csv:line --title "Putting Efficiency by Distance"
+
+# Show makes vs misses as separate lines
+caddie csv:set:line_series makes=made_putts,misses=missed_putts
+caddie csv:line --title "Make/Miss Breakdown"
 ```
 
 ### Bar Charts

@@ -30,7 +30,7 @@ function caddie_csv_help() {
     caddie cli:indent "csv:list                 Show all current defaults"
     caddie cli:blank
     caddie cli:title "Set Commands"
-    caddie cli:indent "csv:set:<key> <value>    Keys: file, x, y, sep, plot (scatter|line|bar), title, limit, save, pager, success_filter, scatter_filter, x_scale, y_scale, x_range, y_range, segment_column, segment_colors, sql, circle, rings, circle_x, circle_y, circle_r, ring_radii"
+    caddie cli:indent "csv:set:<key> <value>    Keys: file, x, y, line_series, sep, plot (scatter|line|bar), title, limit, save, pager, success_filter, scatter_filter, x_scale, y_scale, x_range, y_range, segment_column, segment_colors, sql, circle, rings, circle_x, circle_y, circle_r, ring_radii"
     caddie cli:title "Get Commands"
     caddie cli:indent "csv:get:<key>            Show current value"
     caddie cli:title "Unset Commands"
@@ -55,6 +55,7 @@ function caddie_csv_commands() {
 csv:set:file csv:get:file csv:unset:file csv:prompt \
 csv:set:x csv:get:x csv:unset:x \
 csv:set:y csv:get:y csv:unset:y \
+csv:set:line_series csv:get:line_series csv:unset:line_series \
 csv:set:sep csv:get:sep csv:unset:sep \
 csv:set:plot csv:get:plot csv:unset:plot \
 csv:set:title csv:get:title csv:unset:title \
@@ -121,6 +122,9 @@ export -f caddie_csv_unset_x
 export -f caddie_csv_set_y
 export -f caddie_csv_get_y
 export -f caddie_csv_unset_y
+export -f caddie_csv_set_line_series
+export -f caddie_csv_get_line_series
+export -f caddie_csv_unset_line_series
 export -f caddie_csv_set_sep
 export -f caddie_csv_get_sep
 export -f caddie_csv_unset_sep

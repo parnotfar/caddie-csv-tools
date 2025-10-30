@@ -44,6 +44,7 @@ function caddie_csv_prompt() {
   local cx
   local cy
   local cr
+  local line_series_spec
   local segment_column
   local segment_palette
   local x_scale_value
@@ -82,6 +83,14 @@ function caddie_csv_prompt() {
   if [[ "$PROMPT" =~ segment_colors[[:space:]]*[:=]?[[:space:]]*([#:[:alnum:],._[:space:]-]+) ]]; then
     segment_palette="${BASH_REMATCH[1]}"
     segment_palette="$(tr -d ' ' <<<"$segment_palette")"
+  fi
+
+  if [[ "$PROMPT" =~ line_series[[:space:]]*[:=]?[[:space:]]*([-A-Za-z0-9_=,.[:space:]]+) ]]; then
+    line_series_spec="${BASH_REMATCH[1]}"
+    line_series_spec="$(sed -E 's/[[:space:]]+//g' <<<"$line_series_spec")"
+  elif [[ "$PROMPT" =~ line[[:space:]-]+series[[:space:]]*[:=]?[[:space:]]*([-A-Za-z0-9_=,.[:space:]]+) ]]; then
+    line_series_spec="${BASH_REMATCH[1]}"
+    line_series_spec="$(sed -E 's/[[:space:]]+//g' <<<"$line_series_spec")"
   fi
 
   if [[ "$PROMPT" =~ x_scale[[:space:]]*[:=]?[[:space:]]*([[:alnum:]_.-]+) ]]; then
@@ -141,6 +150,11 @@ function caddie_csv_prompt() {
   if [[ -n "$segment_palette" ]]; then
     local esc_palette; esc_palette="$(sed "s/'/'\\\\''/g" <<<"$segment_palette")"
     cmds+=("caddie csv:set:segment_colors '$esc_palette'")
+  fi
+
+  if [[ -n "$line_series_spec" ]]; then
+    local esc_series; esc_series="$(sed "s/'/'\\\\''/g" <<<"$line_series_spec")"
+    cmds+=("caddie csv:set:line_series '$esc_series'")
   fi
 
   if [[ -n "$x_scale_value" ]]; then

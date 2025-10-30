@@ -176,6 +176,42 @@ def parse_axis_range(raw: str | None) -> tuple[float | None, float | None, list[
     return lower, upper, ticks
 
 
+def expand_line_series_values(raw_values: list[str] | None) -> list[str]:
+    entries: list[str] = []
+    if not raw_values:
+        return entries
+    for raw in raw_values:
+        if not raw:
+            continue
+        normalized = raw.replace("\n", ",").replace(";", ",")
+        for chunk in normalized.split(","):
+            token = chunk.strip()
+            if token:
+                entries.append(token)
+    return entries
+
+
+def parse_line_series_pairs(entries: list[str]) -> list[tuple[str, str]]:
+    pairs: list[tuple[str, str]] = []
+    for entry in entries:
+        token = entry.strip()
+        if not token:
+            continue
+        if "=" in token:
+            label_raw, column_raw = token.split("=", 1)
+            label = label_raw.strip()
+            column = column_raw.strip()
+            if not column:
+                raise SystemExit(f"Invalid line series specification '{entry}'; column name missing")
+            if not label:
+                label = column
+        else:
+            label = token
+            column = token
+        pairs.append((label, column))
+    return pairs
+
+
 def resolve_segment_colors(raw: str | None, count: int) -> list[str]:
     if count <= 0:
         return []
@@ -216,6 +252,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--plot", choices=["scatter", "line", "bar"], default=os.environ.get("CADDIE_CSV_PLOT"))
     parser.add_argument("--x", dest="x", default=os.environ.get("CADDIE_CSV_X"), help="X-axis column for plotting")
     parser.add_argument("--y", dest="y", default=os.environ.get("CADDIE_CSV_Y"), help="Y-axis column for plotting")
+    parser.add_argument(
+        "--line-series",
+        dest="line_series",
+        action="append",
+        help="Comma-separated list of label=column pairs (or column names) to plot as individual lines",
+    )
     parser.add_argument("--sep", default=os.environ.get("CADDIE_CSV_SEP", ","), help="Field separator for the input file")
     parser.add_argument("--limit", type=int, default=env_int("CADDIE_CSV_LIMIT", None), help="Row limit applied to plots; terminal preview shows the first and last 10 rows")
     parser.add_argument("--save", default=os.environ.get("CADDIE_CSV_SAVE"), help="Path to save plot image instead of showing it")
@@ -237,7 +279,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--y-range", dest="y_range", default=os.environ.get("CADDIE_CSV_Y_RANGE"), help="Override the displayed y-axis range; same format as --x-range")
     parser.add_argument("--segment-column", dest="segment_column", default=os.environ.get("CADDIE_CSV_SEGMENT_COLUMN"), help="Categorical column used to color scatter plots")
     parser.add_argument("--segment-colors", dest="segment_colors", default=os.environ.get("CADDIE_CSV_SEGMENT_COLORS"), help="Comma-separated colors matched to the segment values (falls back to tab10 palette)")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.line_series:
+        args.line_series = expand_line_series_values(args.line_series)
+    else:
+        env_line_series = os.environ.get("CADDIE_CSV_LINE_SERIES")
+        args.line_series = expand_line_series_values([env_line_series] if env_line_series else [])
+    return args
 
 
 def require_columns(columns: list[str], df_columns: list[str]) -> None:
@@ -258,15 +306,35 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
 
     x_col = args.x
     y_col = args.y
+    df_columns = list(df.columns)
     if args.plot in {"scatter", "line", "bar"}:
-        if not x_col or not y_col:
+        if not x_col:
+            raise SystemExit("Plotting requires --x (or CADDIE_CSV_X)")
+        require_columns([x_col], df_columns)
+
+    if args.line_series and args.plot != "line":
+        # Allow line-series defaults to linger without breaking other plot types
+        args.line_series = []
+
+    line_series_pairs = []
+    if args.plot == "line":
+        line_series_pairs = parse_line_series_pairs(args.line_series)
+        if not line_series_pairs:
+            if y_col:
+                line_series_pairs = [(y_col, y_col)]
+            else:
+                raise SystemExit("Line plots require at least one series; set --y or --line-series")
+        required_columns = [column for _, column in line_series_pairs]
+        require_columns(required_columns, df_columns)
+    elif args.plot in {"scatter", "bar"}:
+        if not y_col:
             raise SystemExit("Plotting requires both --x and --y (or CADDIE_CSV_X/CADDIE_CSV_Y)")
-        require_columns([x_col, y_col], list(df.columns))
+        require_columns([y_col], df_columns)
     segment_column = getattr(args, "segment_column", None)
     if segment_column:
         if args.plot != "scatter":
             raise SystemExit("--segment-column is only supported with scatter plots")
-        require_columns([segment_column], list(df.columns))
+        require_columns([segment_column], df_columns)
     plot_df = df
     if args.limit is not None:
         if args.limit <= 0:
@@ -307,13 +375,32 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
         else:
             ax.scatter(plot_df[x_col], plot_df[y_col], alpha=0.8, edgecolor="black", linewidth=0.5)
     elif args.plot == "line":
-        ax.plot(plot_df[x_col], plot_df[y_col], marker="o")
+        label_counts: dict[str, int] = {}
+        plotted: list[tuple[str, str]] = []
+        for label, column in line_series_pairs:
+            count = label_counts.get(label, 0)
+            display_label = label if count == 0 else f"{label} ({count + 1})"
+            label_counts[label] = count + 1
+            ax.plot(plot_df[x_col], plot_df[column], marker="o", label=display_label)
+            plotted.append((display_label, column))
+        legend_needed = False
+        if len(plotted) > 1:
+            legend_needed = True
+        elif plotted:
+            original_label, original_column = line_series_pairs[0]
+            if original_label != original_column:
+                legend_needed = True
+        if legend_needed:
+            ax.legend()
     elif args.plot == "bar":
         ax.bar(plot_df[x_col], plot_df[y_col])
     if args.title:
         ax.set_title(args.title)
     ax.set_xlabel(x_col if x_col else "")
-    ax.set_ylabel(y_col if y_col else "")
+    y_axis_label = y_col if y_col else ""
+    if not y_axis_label and args.plot == "line" and line_series_pairs:
+        y_axis_label = line_series_pairs[0][1]
+    ax.set_ylabel(y_axis_label)
     if args.x_scale:
         try:
             ax.set_xscale(args.x_scale)

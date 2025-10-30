@@ -8,6 +8,7 @@ function caddie_csv_init_globals() {
         [file]=CADDIE_CSV_FILE
         [x]=CADDIE_CSV_X
         [y]=CADDIE_CSV_Y
+        [line_series]=CADDIE_CSV_LINE_SERIES
         [sep]=CADDIE_CSV_SEP
         [plot]=CADDIE_CSV_PLOT
         [title]=CADDIE_CSV_TITLE
@@ -32,7 +33,7 @@ function caddie_csv_init_globals() {
     )
 
     declare -ga CADDIE_CSV_KEY_ORDER=(
-        file x y sep plot title limit save pager success_filter scatter_filter x_scale y_scale x_range y_range segment_column segment_colors sql circle rings circle_x circle_y circle_r circle_radii
+        file x y line_series sep plot title limit save pager success_filter scatter_filter x_scale y_scale x_range y_range segment_column segment_colors sql circle rings circle_x circle_y circle_r circle_radii
     )
 
     return 0

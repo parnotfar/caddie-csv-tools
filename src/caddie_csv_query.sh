@@ -17,14 +17,41 @@ function caddie_csv_script_path_internal() {
 }
 
 function caddie_csv_require_axes_internal() {
+    local plot_type="${1:-}"
+    shift
+    local has_cli_line_series=0
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --line-series|--line-series=*)
+                has_cli_line_series=1
+                break
+                ;;
+        esac
+        shift
+    done
     local x_value="${CADDIE_CSV_X:-}"
     local y_value="${CADDIE_CSV_Y:-}"
+    local line_series_value="${CADDIE_CSV_LINE_SERIES:-}"
 
-    if [ -z "$x_value" ] || [ -z "$y_value" ]; then
+    if [ -z "$x_value" ]; then
         caddie cli:red "Set csv axes before plotting"
         caddie cli:thought "Example: caddie csv:set:x aim_offset_x"
-        caddie cli:thought "         caddie csv:set:y aim_offset_y"
         return 1
+    fi
+
+    if [ "$plot_type" = "line" ]; then
+        if [ -z "$y_value" ] && [ -z "$line_series_value" ] && [ $has_cli_line_series -eq 0 ]; then
+            caddie cli:red "Set a y column or configure line series before plotting line charts"
+            caddie cli:thought "Example: caddie csv:set:y make_percentage"
+            caddie cli:thought "         caddie csv:set:line_series makes=made_putts,misses=missed_putts"
+            return 1
+        fi
+    else
+        if [ -z "$y_value" ]; then
+            caddie cli:red "Set csv axes before plotting"
+            caddie cli:thought "Example: caddie csv:set:y aim_offset_y"
+            return 1
+        fi
     fi
     return 0
 }
@@ -92,7 +119,7 @@ function caddie_csv_plot_internal() {
     local script_path
     script_path=$(caddie_csv_script_path_internal) || return 1
 
-    caddie_csv_require_axes_internal || return 1
+    caddie_csv_require_axes_internal "$plot_type" "$@" || return 1
 
     local csv_file
     if [ $# -gt 0 ] && [[ "$1" != --* ]]; then

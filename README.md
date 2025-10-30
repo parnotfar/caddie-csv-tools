@@ -5,7 +5,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 
 ## Version
 
-2.0
+2.1
 
 ## Features
 
@@ -16,6 +16,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 - **NEW in v1.5**: SQL-specific command history (separate from shell history)
 - Session defaults via `csv:set:*` helpers (file, axes, filters, plot metadata)
 - Scatter, line, and bar chart support with matplotlib overlays, custom axis scales/ranges, and categorical segmentation
+- **NEW in v2.1**: Configure multi-series line plots via `csv:set:line_series` or `--line-series`
 - Head/tail previews, configurable pagers, and saved output targets
 - **NEW in v1.5**: Graceful handling of pager exit (no more broken pipe errors)
 - **NEW in v1.6**: Complete broken pipe protection including empty result sets
@@ -102,7 +103,12 @@ See [`docs/usage.md`](docs/usage.md) for comprehensive documentation and command
 
 ## Changelog
 
-### v2.0 (Current) - Major Feature Release
+### v2.1 (Current) - Multi-Line Plot Enhancements
+- **Multiple Series Per Plot**: Define `label=column` pairs once with `csv:set:line_series`
+- **On-Demand Overrides**: Use `--line-series` with `caddie csv:line` for ad-hoc comparisons
+- **Prompt Integration**: Natural language prompts understand `line series` syntax
+
+### v2.0 - Major Feature Release
 - **External Editor Integration**: Added `\edit` command to open SQL buffer in user's editor
 - **Enhanced SQL Composition**: Use `\e` (short alias) to edit complex queries in vim/emacs/etc.
 - **Seamless Workflow**: Editor integration with automatic buffer updates and execution
