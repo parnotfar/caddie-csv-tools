@@ -70,7 +70,7 @@ function caddie_csv_list() {
     local env
     local value
     for alias in "${CADDIE_CSV_KEY_ORDER[@]}"; do
-        env="${CADDIE_CSV_ENV_MAP[$alias]}"
+        env=$(caddie_csv_env_name "$alias") || continue
         value="${!env:-}"
         if [ -n "$value" ]; then
             printf '  %-17s %s\n' "$alias" "$value"

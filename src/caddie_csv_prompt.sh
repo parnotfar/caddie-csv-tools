@@ -134,7 +134,11 @@ function caddie_csv_prompt() {
   local cmds=()
   cmds+=("caddie csv:unset:all")
   [[ -n "$path"  ]] && cmds+=("caddie csv:set:file $path")
-  [[ -n "$plot"  ]] && cmds+=("caddie csv:set:plot ${plot,,}")
+  local plot_lower=""
+  if [[ -n "$plot"  ]]; then
+    plot_lower=$(printf '%s' "$plot" | tr '[:upper:]' '[:lower:]')
+    cmds+=("caddie csv:set:plot $plot_lower")
+  fi
   [[ -n "$x"     ]] && cmds+=("caddie csv:set:x $x")
   [[ -n "$y"     ]] && cmds+=("caddie csv:set:y $y")
   if [[ -n "$title" ]]; then
@@ -158,11 +162,15 @@ function caddie_csv_prompt() {
   fi
 
   if [[ -n "$x_scale_value" ]]; then
-    cmds+=("caddie csv:set:x_scale ${x_scale_value,,}")
+    local x_scale_lower
+    x_scale_lower=$(printf '%s' "$x_scale_value" | tr '[:upper:]' '[:lower:]')
+    cmds+=("caddie csv:set:x_scale $x_scale_lower")
   fi
 
   if [[ -n "$y_scale_value" ]]; then
-    cmds+=("caddie csv:set:y_scale ${y_scale_value,,}")
+    local y_scale_lower
+    y_scale_lower=$(printf '%s' "$y_scale_value" | tr '[:upper:]' '[:lower:]')
+    cmds+=("caddie csv:set:y_scale $y_scale_lower")
   fi
 
   if [[ -n "$x_range_spec" ]]; then
@@ -211,7 +219,7 @@ function caddie_csv_prompt() {
     fi
   fi
 
-  case "${plot,,}" in
+  case "$plot_lower" in
     line)       cmds+=("caddie csv:line");;
     bar)        cmds+=("caddie csv:bar");;
     scatter)    cmds+=("caddie csv:scatter");;
