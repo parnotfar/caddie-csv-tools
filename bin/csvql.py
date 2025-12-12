@@ -251,7 +251,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--init", action="store_true", help="Bootstrap or update local virtualenv and dependencies")
     parser.add_argument("--plot", choices=["scatter", "line", "bar"], default=os.environ.get("CADDIE_CSV_PLOT"))
     parser.add_argument("--x", dest="x", default=os.environ.get("CADDIE_CSV_X"), help="X-axis column for plotting")
-    parser.add_argument("--y", dest="y", default=os.environ.get("CADDIE_CSV_Y"), help="Y-axis column for plotting")
+    parser.add_argument(
+        "--y",
+        dest="y",
+        default=os.environ.get("CADDIE_CSV_Y"),
+        help="Y-axis column for plotting (line plots also accept comma-separated columns or label=column pairs)",
+    )
     parser.add_argument(
         "--line-series",
         dest="line_series",
@@ -294,6 +299,12 @@ def require_columns(columns: list[str], df_columns: list[str]) -> None:
         raise SystemExit(f"Missing columns in result set: {', '.join(missing)}")
 
 
+def is_multi_series_token(value: str | None) -> bool:
+    if not value:
+        return False
+    return any(token in value for token in (",", ";", "\n", "="))
+
+
 def maybe_plot(df, args: argparse.Namespace) -> None:
     if not args.plot:
         return
@@ -319,6 +330,8 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
     line_series_pairs = []
     if args.plot == "line":
         line_series_pairs = parse_line_series_pairs(args.line_series)
+        if not line_series_pairs and is_multi_series_token(y_col):
+            line_series_pairs = parse_line_series_pairs(expand_line_series_values([y_col]))
         if not line_series_pairs:
             if y_col:
                 line_series_pairs = [(y_col, y_col)]
@@ -329,6 +342,8 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
     elif args.plot in {"scatter", "bar"}:
         if not y_col:
             raise SystemExit("Plotting requires both --x and --y (or CADDIE_CSV_X/CADDIE_CSV_Y)")
+        if is_multi_series_token(y_col):
+            raise SystemExit(f"{args.plot} plots require a single y column; use a single --y value")
         require_columns([y_col], df_columns)
     segment_column = getattr(args, "segment_column", None)
     if segment_column:
@@ -398,6 +413,8 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
         ax.set_title(args.title)
     ax.set_xlabel(x_col if x_col else "")
     y_axis_label = y_col if y_col else ""
+    if args.plot == "line" and is_multi_series_token(y_col):
+        y_axis_label = ""
     if not y_axis_label and args.plot == "line" and line_series_pairs:
         y_axis_label = line_series_pairs[0][1]
     ax.set_ylabel(y_axis_label)

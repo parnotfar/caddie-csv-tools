@@ -1196,6 +1196,10 @@ caddie csv:set:x distance
 caddie csv:set:y avg_attempts
 caddie csv:line --title "Putting Efficiency by Distance"
 
+# Shortcut: plot multiple y columns as separate lines
+caddie csv:set:y made_putts,missed_putts
+caddie csv:line --title "Make/Miss Breakdown"
+
 # Show makes vs misses as separate lines
 caddie csv:set:line_series makes=made_putts,misses=missed_putts
 caddie csv:line --title "Make/Miss Breakdown"

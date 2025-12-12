@@ -65,7 +65,7 @@ function caddie_csv_prompt() {
   fi
 
   x="$(_m '[xX][[:space:]]*[:=][[:space:]]*([A-Za-z_][A-Za-z0-9_]*)')"
-  y="$(_m '[yY][[:space:]]*[:=][[:space:]]*([A-Za-z_][A-Za-z0-9_]*)')"
+  y="$(_m '[yY][[:space:]]*[:=][[:space:]]*([A-Za-z_][A-Za-z0-9_]*([[:space:]]*,[[:space:]]*[A-Za-z_][A-Za-z0-9_]*)*)')"
 
   # ERE-safe save pattern -> \.(png|jpg|jpeg|svg|html)
   save="$(_m 'save[[:space:]]*to[[:space:]]*([[:alnum:]_./-]+\.(png|jpg|jpeg|svg|html))')"
@@ -139,8 +139,15 @@ function caddie_csv_prompt() {
     plot_lower=$(printf '%s' "$plot" | tr '[:upper:]' '[:lower:]')
     cmds+=("caddie csv:set:plot $plot_lower")
   fi
-  [[ -n "$x"     ]] && cmds+=("caddie csv:set:x $x")
-  [[ -n "$y"     ]] && cmds+=("caddie csv:set:y $y")
+  if [[ -n "$x" ]]; then
+    local esc_x; esc_x="$(sed "s/'/'\\\\''/g" <<<"$x")"
+    cmds+=("caddie csv:set:x '$esc_x'")
+  fi
+  if [[ -n "$y" ]]; then
+    y="$(sed -E 's/[[:space:]]+//g' <<<"$y")"
+    local esc_y; esc_y="$(sed "s/'/'\\\\''/g" <<<"$y")"
+    cmds+=("caddie csv:set:y '$esc_y'")
+  fi
   if [[ -n "$title" ]]; then
     local esc_title; esc_title="$(sed "s/'/'\\\\''/g" <<<"$title")"
     cmds+=("caddie csv:set:title '$esc_title'")
