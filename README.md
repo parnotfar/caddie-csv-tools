@@ -5,7 +5,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 
 ## Version
 
-2.1
+2.3
 
 ## Features
 
@@ -103,7 +103,12 @@ See [`docs/usage.md`](docs/usage.md) for comprehensive documentation and command
 
 ## Changelog
 
-### v2.1 (Current) - Multi-Line Plot Enhancements
+### v2.3 (Current) - Multi-File Querying
+- **Directory Querying**: Query all CSV files in a directory with `csv:query:dir`
+- **Pattern Querying**: Query directory matches with `csv:query:dir:pattern`
+- **SQL File Runner**: Execute saved queries with `csv:query:sql:file`
+
+### v2.1 - Multi-Line Plot Enhancements
 - **Multiple Series Per Plot**: Define `label=column` pairs once with `csv:set:line_series`
 - **On-Demand Overrides**: Use `--line-series` with `caddie csv:line` for ad-hoc comparisons
 - **Prompt Integration**: Natural language prompts understand `line series` syntax

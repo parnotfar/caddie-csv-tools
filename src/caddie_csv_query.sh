@@ -322,6 +322,153 @@ function caddie_csv_query() {
     return 0
 }
 
+function caddie_csv_query_sql_file() {
+    local sql_file="$1"
+    if [ -z "$sql_file" ]; then
+        caddie cli:red "Error: SQL file required"
+        caddie cli:usage "caddie csv:query:sql:file <sql_file> [csv_file_or_dir]"
+        caddie cli:thought "Example: caddie csv:query:sql:file queries/putts.sql ./data"
+        return 1
+    fi
+
+    if [ ! -f "$sql_file" ]; then
+        caddie cli:red "Error: SQL file not found: $sql_file"
+        return 1
+    fi
+
+    shift
+
+    local csv_input=""
+    if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
+        csv_input="$1"
+        shift
+    fi
+
+    if [ $# -gt 0 ]; then
+        caddie cli:red "Error: Unexpected argument '$1'"
+        caddie cli:usage "caddie csv:query:sql:file <sql_file> [csv_file_or_dir]"
+        return 1
+    fi
+
+    local sql
+    sql=$(cat "$sql_file")
+    if [ -z "$sql" ]; then
+        caddie cli:red "Error: SQL file is empty: $sql_file"
+        return 1
+    fi
+
+    if [ -n "$csv_input" ]; then
+        CADDIE_CSV_SQL="$sql" caddie_csv_query "$csv_input"
+    else
+        CADDIE_CSV_SQL="$sql" caddie_csv_query
+    fi
+}
+
+function caddie_csv_query_dir() {
+    local script_path
+    script_path=$(caddie_csv_script_path_internal) || return 1
+
+    local dir="."
+    if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
+        dir="$1"
+        shift
+    fi
+
+    if [ -z "$dir" ] || [ ! -d "$dir" ]; then
+        caddie cli:red "Error: directory not found"
+        caddie cli:usage "caddie csv:query:dir [dir] [sql]"
+        caddie cli:thought "Example: caddie csv:query:dir ./data \"SELECT COUNT(*) FROM df\""
+        return 1
+    fi
+
+    local glob="${dir%/}/*.csv"
+
+    caddie cli:title "Running csvql on ${dir}/*.csv"
+    local query_args=("$glob")
+    if [ $# -gt 0 ]; then
+        query_args+=("$@")
+    fi
+
+    local pager
+    pager=$(caddie_csv_resolve_pager_internal)
+
+    local status=0
+    if [ "$pager" = "cat" ]; then
+        env -u CADDIE_CSV_PLOT CADDIE_CSV_OUTPUT_MODE=full CADDIE_CSV_SUPPRESS_OUTPUT=0 CADDIE_CSV_INCLUDE_FILENAME=1 CADDIE_CSV_UNION_BY_NAME=1 "$script_path" "${query_args[@]}"
+        status=$?
+    else
+        if [ "$pager" = "less" ] && [ -z "${LESS:-}" ]; then
+            env -u CADDIE_CSV_PLOT CADDIE_CSV_OUTPUT_MODE=full CADDIE_CSV_SUPPRESS_OUTPUT=0 CADDIE_CSV_INCLUDE_FILENAME=1 CADDIE_CSV_UNION_BY_NAME=1 "$script_path" "${query_args[@]}" | LESS='-R -F -X' "$pager"
+        else
+            env -u CADDIE_CSV_PLOT CADDIE_CSV_OUTPUT_MODE=full CADDIE_CSV_SUPPRESS_OUTPUT=0 CADDIE_CSV_INCLUDE_FILENAME=1 CADDIE_CSV_UNION_BY_NAME=1 "$script_path" "${query_args[@]}" | "$pager"
+        fi
+        status=${PIPESTATUS[0]}
+    fi
+
+    if [ $status -ne 0 ]; then
+        caddie cli:red "csvql execution failed"
+        return $status
+    fi
+    return 0
+}
+
+function caddie_csv_query_dir_pattern() {
+    local script_path
+    script_path=$(caddie_csv_script_path_internal) || return 1
+
+    local pattern="$1"
+    if [ -z "$pattern" ]; then
+        caddie cli:red "Error: pattern required"
+        caddie cli:usage "caddie csv:query:dir:pattern <pattern> [dir] [sql]"
+        caddie cli:thought "Example: caddie csv:query:dir:pattern \"*ft_positions.csv\" ./data \"SELECT COUNT(*) FROM df\""
+        return 1
+    fi
+    shift
+
+    local dir="."
+    if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
+        dir="$1"
+        shift
+    fi
+
+    if [ -z "$dir" ] || [ ! -d "$dir" ]; then
+        caddie cli:red "Error: directory not found"
+        caddie cli:usage "caddie csv:query:dir:pattern <pattern> [dir] [sql]"
+        caddie cli:thought "Example: caddie csv:query:dir:pattern \"*ft_positions.csv\" ./data \"SELECT COUNT(*) FROM df\""
+        return 1
+    fi
+
+    local glob="${dir%/}/${pattern}"
+
+    caddie cli:title "Running csvql on ${glob}"
+    local query_args=("$glob")
+    if [ $# -gt 0 ]; then
+        query_args+=("$@")
+    fi
+
+    local pager
+    pager=$(caddie_csv_resolve_pager_internal)
+
+    local status=0
+    if [ "$pager" = "cat" ]; then
+        env -u CADDIE_CSV_PLOT CADDIE_CSV_OUTPUT_MODE=full CADDIE_CSV_SUPPRESS_OUTPUT=0 CADDIE_CSV_INCLUDE_FILENAME=1 CADDIE_CSV_UNION_BY_NAME=1 "$script_path" "${query_args[@]}"
+        status=$?
+    else
+        if [ "$pager" = "less" ] && [ -z "${LESS:-}" ]; then
+            env -u CADDIE_CSV_PLOT CADDIE_CSV_OUTPUT_MODE=full CADDIE_CSV_SUPPRESS_OUTPUT=0 CADDIE_CSV_INCLUDE_FILENAME=1 CADDIE_CSV_UNION_BY_NAME=1 "$script_path" "${query_args[@]}" | LESS='-R -F -X' "$pager"
+        else
+            env -u CADDIE_CSV_PLOT CADDIE_CSV_OUTPUT_MODE=full CADDIE_CSV_SUPPRESS_OUTPUT=0 CADDIE_CSV_INCLUDE_FILENAME=1 CADDIE_CSV_UNION_BY_NAME=1 "$script_path" "${query_args[@]}" | "$pager"
+        fi
+        status=${PIPESTATUS[0]}
+    fi
+
+    if [ $status -ne 0 ]; then
+        caddie cli:red "csvql execution failed"
+        return $status
+    fi
+    return 0
+}
+
 function caddie_csv_query_summary() {
     local script_path
     script_path=$(caddie_csv_script_path_internal) || return 1

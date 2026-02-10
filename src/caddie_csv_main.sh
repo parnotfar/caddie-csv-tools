@@ -8,6 +8,9 @@ function caddie_csv_help() {
     caddie cli:indent "csv:version              Show current version"
     caddie cli:indent "csv:init                 Bootstrap csvql virtual environment"
     caddie cli:indent "csv:query [file] ...     Run csvql with optional SQL/flags"
+    caddie cli:indent "csv:query:sql:file <sql_file> [file|dir]"
+    caddie cli:indent "csv:query:dir [dir] ...  Query all CSV files in a directory"
+    caddie cli:indent "csv:query:dir:pattern <pattern> [dir] ..."
     caddie cli:indent "csv:query:summary        Run csvql and show summarized output"
     caddie cli:indent "csv:sql                  Open an interactive multi-line SQL prompt"
     caddie cli:indent "csv:plot [file] ...      Render plot using active plot type"
@@ -51,7 +54,7 @@ function caddie_csv_sh_help() {
 }
 
 function caddie_csv_commands() {
-    printf '%s' "csv:version csv:init csv:query csv:query:summary csv:sql csv:plot csv:scatter csv:line csv:bar csv:head csv:tail csv:list csv:unset:all \
+    printf '%s' "csv:version csv:init csv:query csv:query:sql:file csv:query:dir csv:query:dir:pattern csv:query:summary csv:sql csv:plot csv:scatter csv:line csv:bar csv:head csv:tail csv:list csv:unset:all \
 csv:set:file csv:get:file csv:unset:file csv:prompt \
 csv:set:x csv:get:x csv:unset:x \
 csv:set:y csv:get:y csv:unset:y \
@@ -105,6 +108,9 @@ export -f caddie_csv_session_delete
 export -f caddie_csv_session_delete_all
 export -f caddie_csv_init
 export -f caddie_csv_query
+export -f caddie_csv_query_sql_file
+export -f caddie_csv_query_dir
+export -f caddie_csv_query_dir_pattern
 export -f caddie_csv_query_summary
 export -f caddie_csv_sql
 export -f caddie_csv_plot

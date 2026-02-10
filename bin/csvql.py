@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import glob
 import os
 import re
 import subprocess
@@ -284,6 +285,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--y-range", dest="y_range", default=os.environ.get("CADDIE_CSV_Y_RANGE"), help="Override the displayed y-axis range; same format as --x-range")
     parser.add_argument("--segment-column", dest="segment_column", default=os.environ.get("CADDIE_CSV_SEGMENT_COLUMN"), help="Categorical column used to color scatter plots")
     parser.add_argument("--segment-colors", dest="segment_colors", default=os.environ.get("CADDIE_CSV_SEGMENT_COLORS"), help="Comma-separated colors matched to the segment values (falls back to tab10 palette)")
+    parser.add_argument("--include-filename", dest="include_filename", action="store_true", default=None, help="Include a filename column when loading CSV data")
     args = parser.parse_args(argv)
     if args.line_series:
         args.line_series = expand_line_series_values(args.line_series)
@@ -291,6 +293,31 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         env_line_series = os.environ.get("CADDIE_CSV_LINE_SERIES")
         args.line_series = expand_line_series_values([env_line_series] if env_line_series else [])
     return args
+
+
+def has_glob(value: str) -> bool:
+    return any(token in value for token in ("*", "?", "["))
+
+
+def resolve_csv_input(raw: str) -> tuple[str, bool]:
+    if not raw:
+        raise SystemExit("Input file not found: <empty>")
+    expanded = os.path.expanduser(raw)
+    if os.path.isdir(expanded):
+        pattern = os.path.join(expanded, "*.csv")
+        matches = glob.glob(pattern)
+        if not matches:
+            raise SystemExit(f"No CSV files found in directory: {expanded}")
+        return pattern, True
+    if has_glob(expanded):
+        matches = glob.glob(expanded)
+        if not matches:
+            raise SystemExit(f"No CSV files matched pattern: {expanded}")
+        return expanded, True
+    csv_path = Path(expanded).resolve()
+    if not csv_path.exists():
+        raise SystemExit(f"Input file not found: {csv_path}")
+    return str(csv_path), False
 
 
 def require_columns(columns: list[str], df_columns: list[str]) -> None:
@@ -494,14 +521,22 @@ def print_dataframe(df, mode: str) -> None:
 def run_query(args: argparse.Namespace) -> None:
     import duckdb
 
-    csv_path = Path(args.csvfile).expanduser().resolve()
-    if not csv_path.exists():
-        raise SystemExit(f"Input file not found: {csv_path}")
+    csv_input, is_multi = resolve_csv_input(args.csvfile)
+    include_filename = args.include_filename
+    if include_filename is None:
+        include_filename = env_bool("CADDIE_CSV_INCLUDE_FILENAME", is_multi)
+    union_by_name = env_bool("CADDIE_CSV_UNION_BY_NAME", is_multi)
     conn = duckdb.connect(database=":memory:")
     try:
+        read_options = ["HEADER=TRUE", "SEP=?"]
+        if include_filename:
+            read_options.append("FILENAME=TRUE")
+        if union_by_name:
+            read_options.append("UNION_BY_NAME=TRUE")
+        read_options_sql = ", ".join(read_options)
         conn.execute(
-            "CREATE OR REPLACE TABLE df AS SELECT * FROM read_csv_auto(?, HEADER=TRUE, SEP=?)",
-            [str(csv_path), args.sep],
+            f"CREATE OR REPLACE TABLE df AS SELECT * FROM read_csv_auto(?, {read_options_sql})",
+            [csv_input, args.sep],
         )
         base_query = args.sql_query or "SELECT * FROM df"
         final_query = apply_success_filter(base_query, args.success_filter)

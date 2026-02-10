@@ -238,6 +238,65 @@ distance  avg_success_rate
 - File must be readable (permissions)
 - SQL syntax compatible with DuckDB
 
+#### `caddie csv:query:sql:file <sql_file> [file|dir]`
+
+Run a SQL file against a CSV file or directory. This is useful for reusable analyses you want to keep in version control.
+
+**Arguments:**
+- `sql_file`: Path to a `.sql` file to execute
+- `file|dir`: (optional) CSV file, directory, or glob pattern (uses default if omitted)
+
+**Examples:**
+```bash
+# Run a SQL file using the default csv:set:file
+caddie csv:query:sql:file queries/putts.sql
+
+# Run a SQL file against a directory of CSVs
+caddie csv:query:sql:file queries/putts.sql ./data
+```
+
+#### `caddie csv:query:dir [dir] [sql]`
+
+Query every `.csv` file in a directory as a single unioned table. The loader enables `UNION_BY_NAME` and adds a `filename` column so you can group by source file.
+
+**Arguments:**
+- `dir`: (optional) Directory to scan (defaults to current directory)
+- `sql`: (optional) SQL query to execute
+
+**Examples:**
+```bash
+# Query all CSVs in the current directory
+caddie csv:query:dir
+
+# Query a specific directory
+caddie csv:query:dir ./data
+
+# Include custom SQL
+caddie csv:query:dir ./data "SELECT filename, COUNT(*) FROM df GROUP BY filename"
+```
+
+**Notes:**
+- Each row includes a `filename` column when loading multiple files.
+- Use `REGEXP_EXTRACT(filename, ...)` in SQL to derive metadata from file names.
+
+#### `caddie csv:query:dir:pattern <pattern> [dir] [sql]`
+
+Query CSV files in a directory that match a glob pattern (e.g., `*ft_positions.csv`) as a single unioned table.
+
+**Arguments:**
+- `pattern`: Glob pattern to match files (required)
+- `dir`: (optional) Directory to scan (defaults to current directory)
+- `sql`: (optional) SQL query to execute
+
+**Examples:**
+```bash
+# Query only ft_positions files in the current directory
+caddie csv:query:dir:pattern "*ft_positions.csv"
+
+# Query a directory and run a custom query
+caddie csv:query:dir:pattern "*ft_positions.csv" ./data "SELECT COUNT(*) FROM df"
+```
+
 #### `caddie csv:query:summary [file] [sql] [-- flags]`
 
 Run the same query pipeline but keep the original summarized output (first and last 10 rows) without invoking a pager.
