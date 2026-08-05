@@ -5,7 +5,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 
 ## Version
 
-2.0
+2.4
 
 ## Features
 
@@ -16,7 +16,11 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 - **NEW in v1.5**: SQL-specific command history (separate from shell history)
 - Session defaults via `csv:set:*` helpers (file, axes, filters, plot metadata)
 - Scatter, line, and bar chart support with matplotlib overlays, custom axis scales/ranges, and categorical segmentation
+- **NEW in v2.1**: Configure multi-series line plots via `csv:set:line_series` or `--line-series`
+- **NEW in v2.3**: Query directories / globs (`csv:query:dir`, `csv:query:dir:pattern`) for multi-file analysis
 - Head/tail previews, configurable pagers, and saved output targets
+- **NEW in v2.4**: `csv:header` / `csv:columns` to list column names and types (`\headers` in the SQL prompt)
+- **NEW in v2.4**: No mass `export -f` (aligned with caddie 10.0 — source-based loading only)
 - **NEW in v1.5**: Graceful handling of pager exit (no more broken pipe errors)
 - **NEW in v1.6**: Complete broken pipe protection including empty result sets
 - **NEW in v2.0**: External editor integration for complex SQL composition
@@ -102,7 +106,22 @@ See [`docs/usage.md`](docs/usage.md) for comprehensive documentation and command
 
 ## Changelog
 
-### v2.0 (Current) - Major Feature Release
+### v2.4 (Current) - Headers & caddie 10.0 Alignment
+- **Column Inspection**: `csv:header` / `csv:columns` list column names and inferred DuckDB types (`csvql.py --headers`)
+- **SQL Prompt**: `\headers` / `\columns` run the same listing for the active CSV file
+- **No Mass `export -f`**: Module functions are sourced only (aligned with caddie.sh 10.0; avoids `BASH_FUNC_*` pollution in child shells)
+
+### v2.3 - Multi-File Querying
+- **Directory Querying**: Query all CSV files in a directory with `csv:query:dir`
+- **Pattern Querying**: Query directory matches with `csv:query:dir:pattern`
+- **SQL File Runner**: Execute saved queries with `csv:query:sql:file`
+
+### v2.1 - Multi-Line Plot Enhancements
+- **Multiple Series Per Plot**: Define `label=column` pairs once with `csv:set:line_series`
+- **On-Demand Overrides**: Use `--line-series` with `caddie csv:line` for ad-hoc comparisons
+- **Prompt Integration**: Natural language prompts understand `line series` syntax
+
+### v2.0 - Major Feature Release
 - **External Editor Integration**: Added `\edit` command to open SQL buffer in user's editor
 - **Enhanced SQL Composition**: Use `\e` (short alias) to edit complex queries in vim/emacs/etc.
 - **Seamless Workflow**: Editor integration with automatic buffer updates and execution
@@ -126,6 +145,6 @@ See [`docs/usage.md`](docs/usage.md) for comprehensive documentation and command
 
 The module is versioned independently from caddie.sh
 
-## Compatabilty
+## Compatibility
 
-This module is compatible with caddie.sh version 2.2 and above
+This module is compatible with caddie.sh 2.2 and above. Version 2.4’s removal of mass `export -f` matches caddie.sh 10.0+; use `caddie` / `caddie agent:exec` (or source the module) in child shells.

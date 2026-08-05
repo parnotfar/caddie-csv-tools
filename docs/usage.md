@@ -11,7 +11,7 @@ The CSV module is designed to streamline data analysis workflows by providing:
 - **Visualization**: Create scatter, line, and bar plots with matplotlib
 - **Session Management**: Manage default settings via dedicated `csv:set:*`, `csv:get:*`, and `csv:unset:*` commands
 - **Saved Sessions**: Capture, list, restore, and delete named configurations
-- **Quick Preview**: Inspect the top or bottom of datasets with `csv:head` and `csv:tail`
+- **Quick Preview**: Inspect columns with `csv:header` / `csv:columns`, and top/bottom rows with `csv:head` / `csv:tail`
 - **Interactive Paging**: Stream large query results through `less`/`more` (auto-detected) or a custom pager
 - **Overlay Features**: Optional circle outlines and concentric rings for highlighting targets or tolerance zones
 - **Virtual Environment**: Automatically bootstrap local Python environment with dependencies
@@ -100,7 +100,8 @@ You can combine the supported syntax in any order:
 | Execution path          | `query` \| `summary` \| `plot` | Determines whether to query or plot the data         |
 | CSV file                | `path/to/file.csv`             | First `*.csv` in the prompt is used                  |
 | Plot type               | `scatter` \| `line` \| `bar`   | Controls which `csv:*` plot command runs             |
-| Axes                    | `x=<col> y=<col>`              | Both required for plotting                           |
+| Axes                    | `x=<col> y=<col>`              | X is required; Y required unless line series configured for line plots |
+| Line series             | `line series label=col,...`    | Sets `csv:set:line_series` (line plots render one line per entry) |
 | Axis scale              | `x_scale=<mode>` `y_scale=<mode>` | Applies matplotlib scaling (e.g., `linear`, `log`, `symlog`) |
 | Axis range              | `x_range=<spec>` `y_range=<spec>` | Comma list with optional brackets/parentheses; blanks mean open bounds |
 | Filter → scatter_filter | `where <predicate>`            | Copied verbatim to `csv:set:scatter_filter`          |
@@ -173,7 +174,7 @@ caddie csv:session:save 30ft_misses
 
 ### Troubleshooting
 * “Plot type not set” → include scatter, line, or bar in your prompt, or run caddie csv:set:plot … first.
-* “Set csv axes before plotting” → include x=<col> y=<col> in your prompt, or set them via csv:set:x / csv:set:y.
+* “Set csv axes before plotting” → include x=<col> y=<col> in your prompt (or add a `line series …` clause for multi-line charts), or set them via csv:set:x / csv:set:y / csv:set:line_series.
 * No file found → ensure the prompt contains a *.csv path or set a default with csv:set:file.
 * Filters not applying → confirm your where predicate matches what your plotting path expects (scatter_filter is set verbatim).
 
@@ -237,6 +238,65 @@ distance  avg_success_rate
 - File must be readable (permissions)
 - SQL syntax compatible with DuckDB
 
+#### `caddie csv:query:sql:file <sql_file> [file|dir]`
+
+Run a SQL file against a CSV file or directory. This is useful for reusable analyses you want to keep in version control.
+
+**Arguments:**
+- `sql_file`: Path to a `.sql` file to execute
+- `file|dir`: (optional) CSV file, directory, or glob pattern (uses default if omitted)
+
+**Examples:**
+```bash
+# Run a SQL file using the default csv:set:file
+caddie csv:query:sql:file queries/putts.sql
+
+# Run a SQL file against a directory of CSVs
+caddie csv:query:sql:file queries/putts.sql ./data
+```
+
+#### `caddie csv:query:dir [dir] [sql]`
+
+Query every `.csv` file in a directory as a single unioned table. The loader enables `UNION_BY_NAME` and adds a `filename` column so you can group by source file.
+
+**Arguments:**
+- `dir`: (optional) Directory to scan (defaults to current directory)
+- `sql`: (optional) SQL query to execute
+
+**Examples:**
+```bash
+# Query all CSVs in the current directory
+caddie csv:query:dir
+
+# Query a specific directory
+caddie csv:query:dir ./data
+
+# Include custom SQL
+caddie csv:query:dir ./data "SELECT filename, COUNT(*) FROM df GROUP BY filename"
+```
+
+**Notes:**
+- Each row includes a `filename` column when loading multiple files.
+- Use `REGEXP_EXTRACT(filename, ...)` in SQL to derive metadata from file names.
+
+#### `caddie csv:query:dir:pattern <pattern> [dir] [sql]`
+
+Query CSV files in a directory that match a glob pattern (e.g., `*ft_positions.csv`) as a single unioned table.
+
+**Arguments:**
+- `pattern`: Glob pattern to match files (required)
+- `dir`: (optional) Directory to scan (defaults to current directory)
+- `sql`: (optional) SQL query to execute
+
+**Examples:**
+```bash
+# Query only ft_positions files in the current directory
+caddie csv:query:dir:pattern "*ft_positions.csv"
+
+# Query a directory and run a custom query
+caddie csv:query:dir:pattern "*ft_positions.csv" ./data "SELECT COUNT(*) FROM df"
+```
+
 #### `caddie csv:query:summary [file] [sql] [-- flags]`
 
 Run the same query pipeline but keep the original summarized output (first and last 10 rows) without invoking a pager.
@@ -284,18 +344,31 @@ caddie csv:plot data/approach_shots.csv charts/approach.png --limit 200
 
 **Requirements:**
 - Plot type must be one of `scatter`, `line`, or `bar` (validated by `csv:set:plot`)
-- X and Y axis columns must be defined (`caddie csv:set:x` and `caddie csv:set:y`)
+- X axis column must be defined (`caddie csv:set:x`)
+- Line plots require either a Y column (`caddie csv:set:y`) or configured series (`caddie csv:set:line_series`)
 - Data columns must exist in the file
 - Plotting dependencies must be installed (`caddie csv:init` has been performed)
 
 #### `caddie csv:line [file] [output.png] [-- flags]`
 
-Render a line chart when `caddie csv:set:plot line` is active.
+Render a line chart when `caddie csv:set:plot line` is active. Each line can pull from the default Y column or from the label=column pairs defined via `caddie csv:set:line_series`.
 
 **Examples:**
 ```bash
+# Single series using the default Y column
 caddie csv:set:plot line
-caddie csv:line data/progression.csv --title "Progress Over Time"
+caddie csv:set:x session_date
+caddie csv:set:y strokes_gained
+caddie csv:line data/progression.csv --title "Strokes Gained Over Time"
+
+# Multi-series plot configured once
+caddie csv:set:plot line
+caddie csv:set:x session_date
+caddie csv:set:line_series makes=made_putts,misses=missed_putts
+caddie csv:line data/progression.csv --title "Putting Progression"
+
+# Override series on demand
+caddie csv:line data/progression.csv --line-series "attempts=attempt_count,total=total_attempts"
 ```
 
 If the plot type is not currently set to `line`, the command explains how to update it.
@@ -374,6 +447,27 @@ caddie csv:tail exports/live_metrics.csv -f
 **Usage tips:**
 - Follow mode (`-f`) works the same as the standard `tail` command
 - Provide the file path before flags when overriding the default (`caddie csv:tail file.csv -n 50`)
+
+#### `caddie csv:header [file]`
+
+List column names and inferred DuckDB types for a CSV/TSV file. Alias: `caddie csv:columns`.
+
+**Examples:**
+```bash
+# Use the session default file
+caddie csv:set:file approach.csv
+caddie csv:header
+
+# Explicit file
+caddie csv:columns data/shot_log.csv
+```
+
+**What it does:**
+- Resolves the active CSV file from the session (or accepts an explicit path)
+- Loads schema via DuckDB `DESCRIBE` (same separator / multi-file rules as queries)
+- Prints each column name with its inferred type
+
+**SQL prompt:** `\headers` or `\columns` runs the same listing for the active file.
 
 ### Session Management
 
@@ -526,6 +620,27 @@ caddie csv:set:y accuracy_score
 ✓ Set y to success_rate
 ```
 
+##### `caddie csv:set:line_series <label=column[,label=column]...>`
+
+Configure multiple series for line charts. Each label=column entry becomes a separate line; labels default to the column name when omitted.
+
+**Arguments:**
+- `label=column[,label=column...]`: Comma-separated list of series specifications
+
+**Examples:**
+```bash
+# Track makes vs misses
+caddie csv:set:line_series makes=made_putts,misses=missed_putts
+
+# Use column names as labels automatically
+caddie csv:set:line_series attempts,total_attempts
+```
+
+**Output:**
+```
+✓ Set line series to makes=made_putts,misses=missed_putts
+```
+
 ##### `caddie csv:set:plot <type>`
 
 Set the default plot type.
@@ -595,6 +710,7 @@ caddie[csv sql]-1.4> SELECT distance,
 - `\q` / `\quit` – leave the SQL prompt
 - `\g` / `\go` – execute the current buffer (uses the existing buffer or the last stored SQL)
 - `\summary` – execute the buffer with `csv:query:summary`
+- `\headers` / `\columns` – list column names and types for the active CSV file (`csv:header`)
 - `\show` – display current CSV defaults (`csv:list`)
 - `\last` – load the last executed SQL statement into the buffer
 - `\history` – show command history list or load specific command (`\history N`)
@@ -1087,6 +1203,7 @@ All CSV module settings map to environment variables with the `CADDIE_CSV_` pref
 | `file` | `CADDIE_CSV_FILE` | Default CSV/TSV file path |
 | `x` | `CADDIE_CSV_X` | X-axis column for plots |
 | `y` | `CADDIE_CSV_Y` | Y-axis column for plots |
+| `line_series` | `CADDIE_CSV_LINE_SERIES` | Label=column definitions for multi-line line plots |
 | `sep` | `CADDIE_CSV_SEP` | Field separator |
 | `plot` | `CADDIE_CSV_PLOT` | Default plot type |
 | `title` | `CADDIE_CSV_TITLE` | Default plot title |
@@ -1151,14 +1268,22 @@ are shown in grey so they remain easy to spot without overwhelming the chart.
 
 ### Line Plots
 
-Line plots connect data points to show trends over a continuous axis.
+Line plots connect data points to show trends over a continuous axis. Set `line_series` to render multiple metrics at once.
 
 ```bash
-# Create line plot
+# Create line plot with a single series
 caddie csv:set:plot line
 caddie csv:set:x distance
 caddie csv:set:y avg_attempts
 caddie csv:line --title "Putting Efficiency by Distance"
+
+# Shortcut: plot multiple y columns as separate lines
+caddie csv:set:y made_putts,missed_putts
+caddie csv:line --title "Make/Miss Breakdown"
+
+# Show makes vs misses as separate lines
+caddie csv:set:line_series makes=made_putts,misses=missed_putts
+caddie csv:line --title "Make/Miss Breakdown"
 ```
 
 ### Bar Charts

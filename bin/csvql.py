@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import glob
 import os
 import re
 import subprocess
@@ -176,6 +177,42 @@ def parse_axis_range(raw: str | None) -> tuple[float | None, float | None, list[
     return lower, upper, ticks
 
 
+def expand_line_series_values(raw_values: list[str] | None) -> list[str]:
+    entries: list[str] = []
+    if not raw_values:
+        return entries
+    for raw in raw_values:
+        if not raw:
+            continue
+        normalized = raw.replace("\n", ",").replace(";", ",")
+        for chunk in normalized.split(","):
+            token = chunk.strip()
+            if token:
+                entries.append(token)
+    return entries
+
+
+def parse_line_series_pairs(entries: list[str]) -> list[tuple[str, str]]:
+    pairs: list[tuple[str, str]] = []
+    for entry in entries:
+        token = entry.strip()
+        if not token:
+            continue
+        if "=" in token:
+            label_raw, column_raw = token.split("=", 1)
+            label = label_raw.strip()
+            column = column_raw.strip()
+            if not column:
+                raise SystemExit(f"Invalid line series specification '{entry}'; column name missing")
+            if not label:
+                label = column
+        else:
+            label = token
+            column = token
+        pairs.append((label, column))
+    return pairs
+
+
 def resolve_segment_colors(raw: str | None, count: int) -> list[str]:
     if count <= 0:
         return []
@@ -215,7 +252,18 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--init", action="store_true", help="Bootstrap or update local virtualenv and dependencies")
     parser.add_argument("--plot", choices=["scatter", "line", "bar"], default=os.environ.get("CADDIE_CSV_PLOT"))
     parser.add_argument("--x", dest="x", default=os.environ.get("CADDIE_CSV_X"), help="X-axis column for plotting")
-    parser.add_argument("--y", dest="y", default=os.environ.get("CADDIE_CSV_Y"), help="Y-axis column for plotting")
+    parser.add_argument(
+        "--y",
+        dest="y",
+        default=os.environ.get("CADDIE_CSV_Y"),
+        help="Y-axis column for plotting (line plots also accept comma-separated columns or label=column pairs)",
+    )
+    parser.add_argument(
+        "--line-series",
+        dest="line_series",
+        action="append",
+        help="Comma-separated list of label=column pairs (or column names) to plot as individual lines",
+    )
     parser.add_argument("--sep", default=os.environ.get("CADDIE_CSV_SEP", ","), help="Field separator for the input file")
     parser.add_argument("--limit", type=int, default=env_int("CADDIE_CSV_LIMIT", None), help="Row limit applied to plots; terminal preview shows the first and last 10 rows")
     parser.add_argument("--save", default=os.environ.get("CADDIE_CSV_SAVE"), help="Path to save plot image instead of showing it")
@@ -237,13 +285,56 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--y-range", dest="y_range", default=os.environ.get("CADDIE_CSV_Y_RANGE"), help="Override the displayed y-axis range; same format as --x-range")
     parser.add_argument("--segment-column", dest="segment_column", default=os.environ.get("CADDIE_CSV_SEGMENT_COLUMN"), help="Categorical column used to color scatter plots")
     parser.add_argument("--segment-colors", dest="segment_colors", default=os.environ.get("CADDIE_CSV_SEGMENT_COLORS"), help="Comma-separated colors matched to the segment values (falls back to tab10 palette)")
-    return parser.parse_args(argv)
+    parser.add_argument("--include-filename", dest="include_filename", action="store_true", default=None, help="Include a filename column when loading CSV data")
+    parser.add_argument(
+        "--headers",
+        action="store_true",
+        help="Print column names (and DuckDB types) for the input file and exit",
+    )
+    args = parser.parse_args(argv)
+    if args.line_series:
+        args.line_series = expand_line_series_values(args.line_series)
+    else:
+        env_line_series = os.environ.get("CADDIE_CSV_LINE_SERIES")
+        args.line_series = expand_line_series_values([env_line_series] if env_line_series else [])
+    return args
+
+
+def has_glob(value: str) -> bool:
+    return any(token in value for token in ("*", "?", "["))
+
+
+def resolve_csv_input(raw: str) -> tuple[str, bool]:
+    if not raw:
+        raise SystemExit("Input file not found: <empty>")
+    expanded = os.path.expanduser(raw)
+    if os.path.isdir(expanded):
+        pattern = os.path.join(expanded, "*.csv")
+        matches = glob.glob(pattern)
+        if not matches:
+            raise SystemExit(f"No CSV files found in directory: {expanded}")
+        return pattern, True
+    if has_glob(expanded):
+        matches = glob.glob(expanded)
+        if not matches:
+            raise SystemExit(f"No CSV files matched pattern: {expanded}")
+        return expanded, True
+    csv_path = Path(expanded).resolve()
+    if not csv_path.exists():
+        raise SystemExit(f"Input file not found: {csv_path}")
+    return str(csv_path), False
 
 
 def require_columns(columns: list[str], df_columns: list[str]) -> None:
     missing = [col for col in columns if col and col not in df_columns]
     if missing:
         raise SystemExit(f"Missing columns in result set: {', '.join(missing)}")
+
+
+def is_multi_series_token(value: str | None) -> bool:
+    if not value:
+        return False
+    return any(token in value for token in (",", ";", "\n", "="))
 
 
 def maybe_plot(df, args: argparse.Namespace) -> None:
@@ -258,15 +349,39 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
 
     x_col = args.x
     y_col = args.y
+    df_columns = list(df.columns)
     if args.plot in {"scatter", "line", "bar"}:
-        if not x_col or not y_col:
+        if not x_col:
+            raise SystemExit("Plotting requires --x (or CADDIE_CSV_X)")
+        require_columns([x_col], df_columns)
+
+    if args.line_series and args.plot != "line":
+        # Allow line-series defaults to linger without breaking other plot types
+        args.line_series = []
+
+    line_series_pairs = []
+    if args.plot == "line":
+        line_series_pairs = parse_line_series_pairs(args.line_series)
+        if not line_series_pairs and is_multi_series_token(y_col):
+            line_series_pairs = parse_line_series_pairs(expand_line_series_values([y_col]))
+        if not line_series_pairs:
+            if y_col:
+                line_series_pairs = [(y_col, y_col)]
+            else:
+                raise SystemExit("Line plots require at least one series; set --y or --line-series")
+        required_columns = [column for _, column in line_series_pairs]
+        require_columns(required_columns, df_columns)
+    elif args.plot in {"scatter", "bar"}:
+        if not y_col:
             raise SystemExit("Plotting requires both --x and --y (or CADDIE_CSV_X/CADDIE_CSV_Y)")
-        require_columns([x_col, y_col], list(df.columns))
+        if is_multi_series_token(y_col):
+            raise SystemExit(f"{args.plot} plots require a single y column; use a single --y value")
+        require_columns([y_col], df_columns)
     segment_column = getattr(args, "segment_column", None)
     if segment_column:
         if args.plot != "scatter":
             raise SystemExit("--segment-column is only supported with scatter plots")
-        require_columns([segment_column], list(df.columns))
+        require_columns([segment_column], df_columns)
     plot_df = df
     if args.limit is not None:
         if args.limit <= 0:
@@ -307,13 +422,34 @@ def maybe_plot(df, args: argparse.Namespace) -> None:
         else:
             ax.scatter(plot_df[x_col], plot_df[y_col], alpha=0.8, edgecolor="black", linewidth=0.5)
     elif args.plot == "line":
-        ax.plot(plot_df[x_col], plot_df[y_col], marker="o")
+        label_counts: dict[str, int] = {}
+        plotted: list[tuple[str, str]] = []
+        for label, column in line_series_pairs:
+            count = label_counts.get(label, 0)
+            display_label = label if count == 0 else f"{label} ({count + 1})"
+            label_counts[label] = count + 1
+            ax.plot(plot_df[x_col], plot_df[column], marker="o", label=display_label)
+            plotted.append((display_label, column))
+        legend_needed = False
+        if len(plotted) > 1:
+            legend_needed = True
+        elif plotted:
+            original_label, original_column = line_series_pairs[0]
+            if original_label != original_column:
+                legend_needed = True
+        if legend_needed:
+            ax.legend()
     elif args.plot == "bar":
         ax.bar(plot_df[x_col], plot_df[y_col])
     if args.title:
         ax.set_title(args.title)
     ax.set_xlabel(x_col if x_col else "")
-    ax.set_ylabel(y_col if y_col else "")
+    y_axis_label = y_col if y_col else ""
+    if args.plot == "line" and is_multi_series_token(y_col):
+        y_axis_label = ""
+    if not y_axis_label and args.plot == "line" and line_series_pairs:
+        y_axis_label = line_series_pairs[0][1]
+    ax.set_ylabel(y_axis_label)
     if args.x_scale:
         try:
             ax.set_xscale(args.x_scale)
@@ -387,17 +523,64 @@ def print_dataframe(df, mode: str) -> None:
         sys.exit(0)
 
 
+def print_headers(args: argparse.Namespace) -> None:
+    """Print column names and inferred types for a CSV/TSV input."""
+    import duckdb
+
+    csv_input, is_multi = resolve_csv_input(args.csvfile)
+    include_filename = args.include_filename
+    if include_filename is None:
+        include_filename = env_bool("CADDIE_CSV_INCLUDE_FILENAME", is_multi)
+    union_by_name = env_bool("CADDIE_CSV_UNION_BY_NAME", is_multi)
+    conn = duckdb.connect(database=":memory:")
+    try:
+        read_options = ["HEADER=TRUE", "SEP=?"]
+        if include_filename:
+            read_options.append("FILENAME=TRUE")
+        if union_by_name:
+            read_options.append("UNION_BY_NAME=TRUE")
+        read_options_sql = ", ".join(read_options)
+        conn.execute(
+            f"CREATE OR REPLACE TABLE df AS SELECT * FROM read_csv_auto(?, {read_options_sql})",
+            [csv_input, args.sep],
+        )
+        rows = conn.execute("DESCRIBE SELECT * FROM df").fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        print("(no columns)")
+        return
+
+    name_width = max(len(str(row[0])) for row in rows)
+    for row in rows:
+        name = str(row[0])
+        col_type = str(row[1]) if len(row) > 1 else ""
+        if col_type:
+            print(f"{name:<{name_width}}  {col_type}")
+        else:
+            print(name)
+
+
 def run_query(args: argparse.Namespace) -> None:
     import duckdb
 
-    csv_path = Path(args.csvfile).expanduser().resolve()
-    if not csv_path.exists():
-        raise SystemExit(f"Input file not found: {csv_path}")
+    csv_input, is_multi = resolve_csv_input(args.csvfile)
+    include_filename = args.include_filename
+    if include_filename is None:
+        include_filename = env_bool("CADDIE_CSV_INCLUDE_FILENAME", is_multi)
+    union_by_name = env_bool("CADDIE_CSV_UNION_BY_NAME", is_multi)
     conn = duckdb.connect(database=":memory:")
     try:
+        read_options = ["HEADER=TRUE", "SEP=?"]
+        if include_filename:
+            read_options.append("FILENAME=TRUE")
+        if union_by_name:
+            read_options.append("UNION_BY_NAME=TRUE")
+        read_options_sql = ", ".join(read_options)
         conn.execute(
-            "CREATE OR REPLACE TABLE df AS SELECT * FROM read_csv_auto(?, HEADER=TRUE, SEP=?)",
-            [str(csv_path), args.sep],
+            f"CREATE OR REPLACE TABLE df AS SELECT * FROM read_csv_auto(?, {read_options_sql})",
+            [csv_input, args.sep],
         )
         base_query = args.sql_query or "SELECT * FROM df"
         final_query = apply_success_filter(base_query, args.success_filter)
@@ -437,6 +620,9 @@ def main(argv: list[str]) -> int:
             if not get_venv_python().exists():
                 ensure_initialized(show_next_steps=False)
         reexec_inside_venv(argv)
+    if args.headers:
+        print_headers(args)
+        return 0
     run_query(args)
     return 0
 

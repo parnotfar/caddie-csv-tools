@@ -44,6 +44,7 @@ function caddie_csv_prompt() {
   local cx
   local cy
   local cr
+  local line_series_spec
   local segment_column
   local segment_palette
   local x_scale_value
@@ -64,7 +65,7 @@ function caddie_csv_prompt() {
   fi
 
   x="$(_m '[xX][[:space:]]*[:=][[:space:]]*([A-Za-z_][A-Za-z0-9_]*)')"
-  y="$(_m '[yY][[:space:]]*[:=][[:space:]]*([A-Za-z_][A-Za-z0-9_]*)')"
+  y="$(_m '[yY][[:space:]]*[:=][[:space:]]*([A-Za-z_][A-Za-z0-9_]*([[:space:]]*,[[:space:]]*[A-Za-z_][A-Za-z0-9_]*)*)')"
 
   # ERE-safe save pattern -> \.(png|jpg|jpeg|svg|html)
   save="$(_m 'save[[:space:]]*to[[:space:]]*([[:alnum:]_./-]+\.(png|jpg|jpeg|svg|html))')"
@@ -82,6 +83,14 @@ function caddie_csv_prompt() {
   if [[ "$PROMPT" =~ segment_colors[[:space:]]*[:=]?[[:space:]]*([#:[:alnum:],._[:space:]-]+) ]]; then
     segment_palette="${BASH_REMATCH[1]}"
     segment_palette="$(tr -d ' ' <<<"$segment_palette")"
+  fi
+
+  if [[ "$PROMPT" =~ line_series[[:space:]]*[:=]?[[:space:]]*([-A-Za-z0-9_=,.[:space:]]+) ]]; then
+    line_series_spec="${BASH_REMATCH[1]}"
+    line_series_spec="$(sed -E 's/[[:space:]]+//g' <<<"$line_series_spec")"
+  elif [[ "$PROMPT" =~ line[[:space:]-]+series[[:space:]]*[:=]?[[:space:]]*([-A-Za-z0-9_=,.[:space:]]+) ]]; then
+    line_series_spec="${BASH_REMATCH[1]}"
+    line_series_spec="$(sed -E 's/[[:space:]]+//g' <<<"$line_series_spec")"
   fi
 
   if [[ "$PROMPT" =~ x_scale[[:space:]]*[:=]?[[:space:]]*([[:alnum:]_.-]+) ]]; then
@@ -125,9 +134,20 @@ function caddie_csv_prompt() {
   local cmds=()
   cmds+=("caddie csv:unset:all")
   [[ -n "$path"  ]] && cmds+=("caddie csv:set:file $path")
-  [[ -n "$plot"  ]] && cmds+=("caddie csv:set:plot ${plot,,}")
-  [[ -n "$x"     ]] && cmds+=("caddie csv:set:x $x")
-  [[ -n "$y"     ]] && cmds+=("caddie csv:set:y $y")
+  local plot_lower=""
+  if [[ -n "$plot"  ]]; then
+    plot_lower=$(printf '%s' "$plot" | tr '[:upper:]' '[:lower:]')
+    cmds+=("caddie csv:set:plot $plot_lower")
+  fi
+  if [[ -n "$x" ]]; then
+    local esc_x; esc_x="$(sed "s/'/'\\\\''/g" <<<"$x")"
+    cmds+=("caddie csv:set:x '$esc_x'")
+  fi
+  if [[ -n "$y" ]]; then
+    y="$(sed -E 's/[[:space:]]+//g' <<<"$y")"
+    local esc_y; esc_y="$(sed "s/'/'\\\\''/g" <<<"$y")"
+    cmds+=("caddie csv:set:y '$esc_y'")
+  fi
   if [[ -n "$title" ]]; then
     local esc_title; esc_title="$(sed "s/'/'\\\\''/g" <<<"$title")"
     cmds+=("caddie csv:set:title '$esc_title'")
@@ -143,12 +163,21 @@ function caddie_csv_prompt() {
     cmds+=("caddie csv:set:segment_colors '$esc_palette'")
   fi
 
+  if [[ -n "$line_series_spec" ]]; then
+    local esc_series; esc_series="$(sed "s/'/'\\\\''/g" <<<"$line_series_spec")"
+    cmds+=("caddie csv:set:line_series '$esc_series'")
+  fi
+
   if [[ -n "$x_scale_value" ]]; then
-    cmds+=("caddie csv:set:x_scale ${x_scale_value,,}")
+    local x_scale_lower
+    x_scale_lower=$(printf '%s' "$x_scale_value" | tr '[:upper:]' '[:lower:]')
+    cmds+=("caddie csv:set:x_scale $x_scale_lower")
   fi
 
   if [[ -n "$y_scale_value" ]]; then
-    cmds+=("caddie csv:set:y_scale ${y_scale_value,,}")
+    local y_scale_lower
+    y_scale_lower=$(printf '%s' "$y_scale_value" | tr '[:upper:]' '[:lower:]')
+    cmds+=("caddie csv:set:y_scale $y_scale_lower")
   fi
 
   if [[ -n "$x_range_spec" ]]; then
@@ -197,7 +226,7 @@ function caddie_csv_prompt() {
     fi
   fi
 
-  case "${plot,,}" in
+  case "$plot_lower" in
     line)       cmds+=("caddie csv:line");;
     bar)        cmds+=("caddie csv:bar");;
     scatter)    cmds+=("caddie csv:scatter");;

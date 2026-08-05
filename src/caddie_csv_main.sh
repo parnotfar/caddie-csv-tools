@@ -8,6 +8,9 @@ function caddie_csv_help() {
     caddie cli:indent "csv:version              Show current version"
     caddie cli:indent "csv:init                 Bootstrap csvql virtual environment"
     caddie cli:indent "csv:query [file] ...     Run csvql with optional SQL/flags"
+    caddie cli:indent "csv:query:sql:file <sql_file> [file|dir]"
+    caddie cli:indent "csv:query:dir [dir] ...  Query all CSV files in a directory"
+    caddie cli:indent "csv:query:dir:pattern <pattern> [dir] ..."
     caddie cli:indent "csv:query:summary        Run csvql and show summarized output"
     caddie cli:indent "csv:sql                  Open an interactive multi-line SQL prompt"
     caddie cli:indent "csv:plot [file] ...      Render plot using active plot type"
@@ -16,6 +19,8 @@ function caddie_csv_help() {
     caddie cli:indent "csv:bar [file] ...       Render bar plot when plot type is bar"
     caddie cli:indent "csv:head [file] ...      Preview the first rows of a CSV file"
     caddie cli:indent "csv:tail [file] ...      Preview the last rows of a CSV file"
+    caddie cli:indent "csv:header [file]        List column names and types"
+    caddie cli:indent "csv:columns [file]       Alias for csv:header"
     caddie cli:indent "csv:unset:all            Clear all session defaults"
     caddie cli:blank
     caddie cli:title "Session Management"
@@ -30,7 +35,7 @@ function caddie_csv_help() {
     caddie cli:indent "csv:list                 Show all current defaults"
     caddie cli:blank
     caddie cli:title "Set Commands"
-    caddie cli:indent "csv:set:<key> <value>    Keys: file, x, y, sep, plot (scatter|line|bar), title, limit, save, pager, success_filter, scatter_filter, x_scale, y_scale, x_range, y_range, segment_column, segment_colors, sql, circle, rings, circle_x, circle_y, circle_r, ring_radii"
+    caddie cli:indent "csv:set:<key> <value>    Keys: file, x, y, line_series, sep, plot (scatter|line|bar), title, limit, save, pager, success_filter, scatter_filter, x_scale, y_scale, x_range, y_range, segment_column, segment_colors, sql, circle, rings, circle_x, circle_y, circle_r, ring_radii"
     caddie cli:title "Get Commands"
     caddie cli:indent "csv:get:<key>            Show current value"
     caddie cli:title "Unset Commands"
@@ -51,10 +56,11 @@ function caddie_csv_sh_help() {
 }
 
 function caddie_csv_commands() {
-    printf '%s' "csv:version csv:init csv:query csv:query:summary csv:sql csv:plot csv:scatter csv:line csv:bar csv:head csv:tail csv:list csv:unset:all \
+    printf '%s' "csv:version csv:init csv:query csv:query:sql:file csv:query:dir csv:query:dir:pattern csv:query:summary csv:sql csv:plot csv:scatter csv:line csv:bar csv:head csv:tail csv:header csv:columns csv:list csv:unset:all \
 csv:set:file csv:get:file csv:unset:file csv:prompt \
 csv:set:x csv:get:x csv:unset:x \
 csv:set:y csv:get:y csv:unset:y \
+csv:set:line_series csv:get:line_series csv:unset:line_series \
 csv:set:sep csv:get:sep csv:unset:sep \
 csv:set:plot csv:get:plot csv:unset:plot \
 csv:set:title csv:get:title csv:unset:title \
@@ -89,100 +95,5 @@ if declare -F caddie_completion_register >/dev/null 2>&1; then
     caddie_completion_register "csv" "$(caddie_csv_commands)"
 fi
 
-# Export all functions for external use
-export -f caddie_csv_description
-export -f caddie_csv_help
-export -f caddie_csv_sh_description
-export -f caddie_csv_sh_help
-export -f caddie_csv_list
-export -f caddie_csv_unset_all
-export -f caddie_csv_session_save
-export -f caddie_csv_session_list
-export -f caddie_csv_session_view
-export -f caddie_csv_session_restore
-export -f caddie_csv_session_delete
-export -f caddie_csv_session_delete_all
-export -f caddie_csv_init
-export -f caddie_csv_query
-export -f caddie_csv_query_summary
-export -f caddie_csv_sql
-export -f caddie_csv_plot
-export -f caddie_csv_scatter
-export -f caddie_csv_line
-export -f caddie_csv_bar
-export -f caddie_csv_head
-export -f caddie_csv_tail
-export -f caddie_csv_set_file
-export -f caddie_csv_get_file
-export -f caddie_csv_unset_file
-export -f caddie_csv_set_x
-export -f caddie_csv_get_x
-export -f caddie_csv_unset_x
-export -f caddie_csv_set_y
-export -f caddie_csv_get_y
-export -f caddie_csv_unset_y
-export -f caddie_csv_set_sep
-export -f caddie_csv_get_sep
-export -f caddie_csv_unset_sep
-export -f caddie_csv_set_plot
-export -f caddie_csv_get_plot
-export -f caddie_csv_unset_plot
-export -f caddie_csv_set_title
-export -f caddie_csv_get_title
-export -f caddie_csv_unset_title
-export -f caddie_csv_set_limit
-export -f caddie_csv_get_limit
-export -f caddie_csv_unset_limit
-export -f caddie_csv_set_save
-export -f caddie_csv_get_save
-export -f caddie_csv_unset_save
-export -f caddie_csv_set_pager
-export -f caddie_csv_get_pager
-export -f caddie_csv_unset_pager
-export -f caddie_csv_set_success_filter
-export -f caddie_csv_get_success_filter
-export -f caddie_csv_unset_success_filter
-export -f caddie_csv_set_scatter_filter
-export -f caddie_csv_get_scatter_filter
-export -f caddie_csv_unset_scatter_filter
-export -f caddie_csv_set_x_scale
-export -f caddie_csv_get_x_scale
-export -f caddie_csv_unset_x_scale
-export -f caddie_csv_set_y_scale
-export -f caddie_csv_get_y_scale
-export -f caddie_csv_unset_y_scale
-export -f caddie_csv_set_x_range
-export -f caddie_csv_get_x_range
-export -f caddie_csv_unset_x_range
-export -f caddie_csv_set_y_range
-export -f caddie_csv_get_y_range
-export -f caddie_csv_unset_y_range
-export -f caddie_csv_set_segment_column
-export -f caddie_csv_get_segment_column
-export -f caddie_csv_unset_segment_column
-export -f caddie_csv_set_segment_colors
-export -f caddie_csv_get_segment_colors
-export -f caddie_csv_unset_segment_colors
-export -f caddie_csv_set_sql
-export -f caddie_csv_get_sql
-export -f caddie_csv_unset_sql
-export -f caddie_csv_set_circle
-export -f caddie_csv_get_circle
-export -f caddie_csv_unset_circle
-export -f caddie_csv_set_rings
-export -f caddie_csv_get_rings
-export -f caddie_csv_unset_rings
-export -f caddie_csv_set_circle_x
-export -f caddie_csv_get_circle_x
-export -f caddie_csv_unset_circle_x
-export -f caddie_csv_set_circle_y
-export -f caddie_csv_get_circle_y
-export -f caddie_csv_unset_circle_y
-export -f caddie_csv_set_circle_r
-export -f caddie_csv_get_circle_r
-export -f caddie_csv_unset_circle_r
-export -f caddie_csv_set_circle_radii
-export -f caddie_csv_get_circle_radii
-export -f caddie_csv_unset_circle_radii
-export -f caddie_csv_prompt
-export -f caddie_csv_version
+# Do not export -f. Functions are available after this module is sourced.
+# Child shells should use caddie / caddie agent:exec (which source fresh).

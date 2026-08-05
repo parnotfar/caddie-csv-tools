@@ -141,6 +141,8 @@ function caddie_csv_sql_help_internal() {
     caddie cli:indent "\\g        Execute the current buffer (query)"
     caddie cli:indent "\\summary  Execute the current buffer as a summary query"
     caddie cli:indent "\\show     Display active CSV defaults"
+    caddie cli:indent "\\headers  List column names/types for the active CSV file"
+    caddie cli:indent "\\columns  Alias for \\headers"
     caddie cli:indent "\\last     Show the last stored SQL statement"
     caddie cli:indent "\\history  Show command history (\\history) or load specific command (\\history N)"
     caddie cli:indent "\\hist     Alias for \\history"
@@ -333,6 +335,10 @@ function caddie_csv_sql() {
                     ;;
                 \\show)
                     caddie_csv_list
+                    continue
+                    ;;
+                \\headers|\\columns)
+                    caddie_csv_header
                     continue
                     ;;
                 \\last)
