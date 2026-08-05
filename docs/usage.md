@@ -710,6 +710,7 @@ caddie[csv sql]-1.4> SELECT distance,
 - `\q` / `\quit` – leave the SQL prompt
 - `\g` / `\go` – execute the current buffer (uses the existing buffer or the last stored SQL)
 - `\summary` – execute the buffer with `csv:query:summary`
+- `\headers` / `\columns` – list column names and types for the active CSV file (`csv:header`)
 - `\show` – display current CSV defaults (`csv:list`)
 - `\last` – load the last executed SQL statement into the buffer
 - `\history` – show command history list or load specific command (`\history N`)

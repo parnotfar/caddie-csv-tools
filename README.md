@@ -106,7 +106,12 @@ See [`docs/usage.md`](docs/usage.md) for comprehensive documentation and command
 
 ## Changelog
 
-### v2.3 (Current) - Multi-File Querying
+### v2.4 (Current) - Headers & caddie 10.0 Alignment
+- **Column Inspection**: `csv:header` / `csv:columns` list column names and inferred DuckDB types (`csvql.py --headers`)
+- **SQL Prompt**: `\headers` / `\columns` run the same listing for the active CSV file
+- **No Mass `export -f`**: Module functions are sourced only (aligned with caddie.sh 10.0; avoids `BASH_FUNC_*` pollution in child shells)
+
+### v2.3 - Multi-File Querying
 - **Directory Querying**: Query all CSV files in a directory with `csv:query:dir`
 - **Pattern Querying**: Query directory matches with `csv:query:dir:pattern`
 - **SQL File Runner**: Execute saved queries with `csv:query:sql:file`
@@ -140,6 +145,6 @@ See [`docs/usage.md`](docs/usage.md) for comprehensive documentation and command
 
 The module is versioned independently from caddie.sh
 
-## Compatabilty
+## Compatibility
 
-This module is compatible with caddie.sh version 2.2 and above
+This module is compatible with caddie.sh 2.2 and above. Version 2.4’s removal of mass `export -f` matches caddie.sh 10.0+; use `caddie` / `caddie agent:exec` (or source the module) in child shells.
