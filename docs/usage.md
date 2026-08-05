@@ -11,7 +11,7 @@ The CSV module is designed to streamline data analysis workflows by providing:
 - **Visualization**: Create scatter, line, and bar plots with matplotlib
 - **Session Management**: Manage default settings via dedicated `csv:set:*`, `csv:get:*`, and `csv:unset:*` commands
 - **Saved Sessions**: Capture, list, restore, and delete named configurations
-- **Quick Preview**: Inspect the top or bottom of datasets with `csv:head` and `csv:tail`
+- **Quick Preview**: Inspect columns with `csv:header` / `csv:columns`, and top/bottom rows with `csv:head` / `csv:tail`
 - **Interactive Paging**: Stream large query results through `less`/`more` (auto-detected) or a custom pager
 - **Overlay Features**: Optional circle outlines and concentric rings for highlighting targets or tolerance zones
 - **Virtual Environment**: Automatically bootstrap local Python environment with dependencies
@@ -447,6 +447,27 @@ caddie csv:tail exports/live_metrics.csv -f
 **Usage tips:**
 - Follow mode (`-f`) works the same as the standard `tail` command
 - Provide the file path before flags when overriding the default (`caddie csv:tail file.csv -n 50`)
+
+#### `caddie csv:header [file]`
+
+List column names and inferred DuckDB types for a CSV/TSV file. Alias: `caddie csv:columns`.
+
+**Examples:**
+```bash
+# Use the session default file
+caddie csv:set:file approach.csv
+caddie csv:header
+
+# Explicit file
+caddie csv:columns data/shot_log.csv
+```
+
+**What it does:**
+- Resolves the active CSV file from the session (or accepts an explicit path)
+- Loads schema via DuckDB `DESCRIBE` (same separator / multi-file rules as queries)
+- Prints each column name with its inferred type
+
+**SQL prompt:** `\headers` or `\columns` runs the same listing for the active file.
 
 ### Session Management
 

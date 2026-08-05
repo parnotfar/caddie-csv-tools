@@ -4,7 +4,7 @@
 source "$HOME/.caddie_modules/.caddie_cli"
 
 # Private version variable
-CADDIE_CSV_TOOLS_VERSION="2.3"
+CADDIE_CSV_TOOLS_VERSION="2.4"
 
 # Function to get the current version
 function caddie_csv_tools_version_get() {
@@ -34,8 +34,4 @@ function caddie_csv_tools_version_show() {
     caddie cli:orange "Caddie CSV Tools version: $CADDIE_CSV_TOOLS_VERSION"
 }
 
-# Export functions for external use
-export -f caddie_csv_tools_version_get
-export -f caddie_csv_tools_version_set
-export -f caddie_csv_tools_version_reset
-export -f caddie_csv_tools_version_show
+# Do not export -f. Available after this file is sourced with the csv module.

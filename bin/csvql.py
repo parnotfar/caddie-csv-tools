@@ -286,6 +286,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--segment-column", dest="segment_column", default=os.environ.get("CADDIE_CSV_SEGMENT_COLUMN"), help="Categorical column used to color scatter plots")
     parser.add_argument("--segment-colors", dest="segment_colors", default=os.environ.get("CADDIE_CSV_SEGMENT_COLORS"), help="Comma-separated colors matched to the segment values (falls back to tab10 palette)")
     parser.add_argument("--include-filename", dest="include_filename", action="store_true", default=None, help="Include a filename column when loading CSV data")
+    parser.add_argument(
+        "--headers",
+        action="store_true",
+        help="Print column names (and DuckDB types) for the input file and exit",
+    )
     args = parser.parse_args(argv)
     if args.line_series:
         args.line_series = expand_line_series_values(args.line_series)
@@ -518,6 +523,45 @@ def print_dataframe(df, mode: str) -> None:
         sys.exit(0)
 
 
+def print_headers(args: argparse.Namespace) -> None:
+    """Print column names and inferred types for a CSV/TSV input."""
+    import duckdb
+
+    csv_input, is_multi = resolve_csv_input(args.csvfile)
+    include_filename = args.include_filename
+    if include_filename is None:
+        include_filename = env_bool("CADDIE_CSV_INCLUDE_FILENAME", is_multi)
+    union_by_name = env_bool("CADDIE_CSV_UNION_BY_NAME", is_multi)
+    conn = duckdb.connect(database=":memory:")
+    try:
+        read_options = ["HEADER=TRUE", "SEP=?"]
+        if include_filename:
+            read_options.append("FILENAME=TRUE")
+        if union_by_name:
+            read_options.append("UNION_BY_NAME=TRUE")
+        read_options_sql = ", ".join(read_options)
+        conn.execute(
+            f"CREATE OR REPLACE TABLE df AS SELECT * FROM read_csv_auto(?, {read_options_sql})",
+            [csv_input, args.sep],
+        )
+        rows = conn.execute("DESCRIBE SELECT * FROM df").fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        print("(no columns)")
+        return
+
+    name_width = max(len(str(row[0])) for row in rows)
+    for row in rows:
+        name = str(row[0])
+        col_type = str(row[1]) if len(row) > 1 else ""
+        if col_type:
+            print(f"{name:<{name_width}}  {col_type}")
+        else:
+            print(name)
+
+
 def run_query(args: argparse.Namespace) -> None:
     import duckdb
 
@@ -576,6 +620,9 @@ def main(argv: list[str]) -> int:
             if not get_venv_python().exists():
                 ensure_initialized(show_next_steps=False)
         reexec_inside_venv(argv)
+    if args.headers:
+        print_headers(args)
+        return 0
     run_query(args)
     return 0
 

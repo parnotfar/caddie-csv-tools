@@ -5,7 +5,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 
 ## Version
 
-2.3
+2.4
 
 ## Features
 
@@ -17,7 +17,10 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 - Session defaults via `csv:set:*` helpers (file, axes, filters, plot metadata)
 - Scatter, line, and bar chart support with matplotlib overlays, custom axis scales/ranges, and categorical segmentation
 - **NEW in v2.1**: Configure multi-series line plots via `csv:set:line_series` or `--line-series`
+- **NEW in v2.3**: Query directories / globs (`csv:query:dir`, `csv:query:dir:pattern`) for multi-file analysis
 - Head/tail previews, configurable pagers, and saved output targets
+- **NEW in v2.4**: `csv:header` / `csv:columns` to list column names and types (`\headers` in the SQL prompt)
+- **NEW in v2.4**: No mass `export -f` (aligned with caddie 10.0 — source-based loading only)
 - **NEW in v1.5**: Graceful handling of pager exit (no more broken pipe errors)
 - **NEW in v1.6**: Complete broken pipe protection including empty result sets
 - **NEW in v2.0**: External editor integration for complex SQL composition

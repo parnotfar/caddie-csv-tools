@@ -551,3 +551,52 @@ function caddie_csv_tail() {
     caddie_csv_preview_internal tail "Previewing last rows" "caddie csv:tail [file] [tail options]" "$@"
     return $?
 }
+
+function caddie_csv_header() {
+    local script_path
+    local file_candidate=""
+    local csv_file=""
+    local status=0
+
+    script_path=$(caddie_csv_script_path_internal) || return 1
+
+    if [ $# -gt 0 ]; then
+        case "$1" in
+            --help|-h)
+                caddie cli:title "List CSV column names"
+                caddie cli:usage "caddie csv:header [file]"
+                caddie cli:thought "Alias: caddie csv:columns [file]"
+                caddie cli:thought "Set a default file with caddie csv:set:file <path>"
+                return 0
+                ;;
+        esac
+    fi
+
+    if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
+        file_candidate="$1"
+        shift
+    fi
+
+    csv_file=$(caddie_csv_resolve_file_argument_internal "$file_candidate")
+
+    if [ -z "$csv_file" ]; then
+        caddie cli:red "Error: CSV file required"
+        caddie cli:usage "caddie csv:header [file]"
+        caddie cli:thought "Provide a file or set a default with caddie csv:set:file <path>"
+        return 1
+    fi
+
+    caddie cli:title "Columns in $csv_file"
+    "$script_path" "$csv_file" --headers "$@"
+    status=$?
+    if [ "$status" -ne 0 ]; then
+        caddie cli:red "Failed to read CSV headers"
+        return "$status"
+    fi
+    return 0
+}
+
+function caddie_csv_columns() {
+    caddie_csv_header "$@"
+    return $?
+}
