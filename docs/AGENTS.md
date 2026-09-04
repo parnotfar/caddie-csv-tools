@@ -5,7 +5,7 @@ typing the first token of a command, pressing <kbd>return</kbd>, and then typing
 
 ```text
 caddie> rust
-caddie[rust]-1.4>
+caddie[rust]-2.5>
 ```
 
 The prompt reflects the active mode (`rust` in the example) and the agent version, making it easy to see which command
@@ -17,7 +17,7 @@ The CSV tools module integrates with the same prompt stack:
 
 ```text
 caddie> csv
-caddie[csv]-1.4>
+caddie[csv]-2.5>
 ```
 
 Once the CSV mode is active, all `csv:*` commands are available without the `csv:` prefix. Typing `help` shows the CSV
@@ -25,12 +25,12 @@ command reference, and `exit` unwinds back to the previous prompt level.
 
 ### Nested SQL Prompt
 
-Version 1.4 introduces a dedicated SQL prompt so you can compose and run multi-line statements without wrapping them in
+Version 1.4 introduced a dedicated SQL prompt so you can compose and run multi-line statements without wrapping them in
 `set sql '...'` calls. Drop into the nested prompt with:
 
 ```text
-caddie[csv]-1.4> sql
-caddie[csv sql]-1.4>
+caddie[csv]-2.5> sql
+caddie[csv sql]-2.5>
 ```
 
 Key behaviours:
@@ -51,3 +51,5 @@ statement.
 - Prompt segments include active CSV context — for example, `[csv:file.csv]` appears when a default CSV file is set.
 
 Refer to [`docs/usage.md`](usage.md) for full command usage and integration tips.
+
+For noninteractive discovery, use `caddie agent:exec core:module:commands csv`. Caddie.sh 11.5.0 or later also provides both `csv:<command> --help` and `csv:<command>:help`, including namespace summaries.

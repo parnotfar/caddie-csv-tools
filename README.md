@@ -5,7 +5,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 
 ## Version
 
-2.4
+2.5
 
 ## Features
 
@@ -21,6 +21,7 @@ commands (querying, plotting, previews) so they can evolve independently of the 
 - Head/tail previews, configurable pagers, and saved output targets
 - **NEW in v2.4**: `csv:header` / `csv:columns` to list column names and types (`\headers` in the SQL prompt)
 - **NEW in v2.4**: No mass `export -f` (aligned with caddie 10.0 — source-based loading only)
+- **NEW in v2.5**: Universal command and namespace help through the caddie.sh 11.5 core harness
 - **NEW in v1.5**: Graceful handling of pager exit (no more broken pipe errors)
 - **NEW in v1.6**: Complete broken pipe protection including empty result sets
 - **NEW in v2.0**: External editor integration for complex SQL composition
@@ -106,7 +107,12 @@ See [`docs/usage.md`](docs/usage.md) for comprehensive documentation and command
 
 ## Changelog
 
-### v2.4 (Current) - Headers & caddie 10.0 Alignment
+### v2.5 (Current) - Core Command Help
+- **Command Help**: Every registered command supports both `caddie csv:<command> --help` and `caddie csv:<command>:help`
+- **Namespace Help**: Command families such as `csv:session` support the same symmetric help forms
+- **Core Contract**: Requires caddie.sh 11.5.0 or later; live command metadata remains authoritative
+
+### v2.4 - Headers & caddie 10.0 Alignment
 - **Column Inspection**: `csv:header` / `csv:columns` list column names and inferred DuckDB types (`csvql.py --headers`)
 - **SQL Prompt**: `\headers` / `\columns` run the same listing for the active CSV file
 - **No Mass `export -f`**: Module functions are sourced only (aligned with caddie.sh 10.0; avoids `BASH_FUNC_*` pollution in child shells)
@@ -147,4 +153,4 @@ The module is versioned independently from caddie.sh
 
 ## Compatibility
 
-This module is compatible with caddie.sh 2.2 and above. Version 2.4’s removal of mass `export -f` matches caddie.sh 10.0+; use `caddie` / `caddie agent:exec` (or source the module) in child shells.
+Version 2.5 requires caddie.sh 11.5.0 or later for generated command and namespace help. Use `caddie` / `caddie agent:exec` (or source the module) in child shells.

@@ -4,7 +4,7 @@
 source "$HOME/.caddie_modules/.caddie_cli"
 
 # Private version variable
-CADDIE_CSV_TOOLS_VERSION="2.4"
+CADDIE_CSV_TOOLS_VERSION="2.5"
 
 # Function to get the current version
 function caddie_csv_tools_version_get() {
@@ -25,7 +25,7 @@ function caddie_csv_tools_version_set() {
 
 # Function to reset version to default
 function caddie_csv_tools_version_reset() {
-    CADDIE_CSV_TOOLS_VERSION="1.0"
+    CADDIE_CSV_TOOLS_VERSION="2.5"
     caddie cli:check "Caddie CSV Tools version reset to: $CADDIE_CSV_TOOLS_VERSION"
 }
 

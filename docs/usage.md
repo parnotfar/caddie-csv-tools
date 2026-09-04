@@ -1,5 +1,7 @@
 # CSV Module
 
+Version 2.5 requires caddie.sh 11.5.0 or later. Every registered command supports both `caddie csv:<command> --help` and `caddie csv:<command>:help`; namespaces use the same symmetric forms.
+
 The CSV module provides fast analytics over CSV/TSV data with DuckDB SQL and optional matplotlib plots. It wraps the
 `bin/csvql.py` Python helper to make data analysis effortless and consistent.
 
@@ -1646,9 +1648,9 @@ echo "✓ CSV module test completed successfully"
 
 ## Related Documentation
 
-- **[Core Module](core.md)** - Basic Caddie.sh functions and debug system
-- **[Git Module](git.md)** - Version control for analysis results
-- **[Python Module](python.md)** - Python environment that CSV module builds upon
+- **[Core Caddie documentation](https://github.com/parnotfar/caddie.sh/tree/main/docs)** - CLI functions, discovery, and debug behavior
+- **[Git tools documentation](https://github.com/parnotfar/caddie-git-tools/blob/main/docs/usage.md)** - Version control workflows for analysis results
+- **[Python module documentation](https://github.com/parnotfar/caddie.sh/blob/main/docs/modules/python.md)** - Python environment that CSV builds upon
 
 ## External Resources
 

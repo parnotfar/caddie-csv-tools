@@ -86,6 +86,19 @@ csv:session:save csv:session:list csv:session:view csv:session:restore csv:sessi
     return 0
 }
 
+function caddie_csv_command_help() {
+    if [ "${1:-}" = "csv:help" ]; then
+        caddie_csv_help
+        return $?
+    fi
+    if declare -F _caddie_default_command_help >/dev/null 2>&1; then
+        _caddie_default_command_help "${1:-}"
+        return $?
+    fi
+    caddie_csv_help
+    return $?
+}
+
 # Register with caddie if available
 if declare -F caddie_prompt_register_segment >/dev/null 2>&1; then
     caddie_prompt_register_segment caddie_csv_prompt_segment
